@@ -1,6 +1,5 @@
 import constants as cst
 import math
-import numpy as np
 import pickle
 import time
 import torch
@@ -64,6 +63,11 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         if doc_idx % log_interval == 0:
             cur_loss = total_loss / log_interval
             elapsed = time.time() - start_time
+            try:
+                ppl = math.exp(cur_loss)
+            except OverflowError:
+                print("ppl too large to compute")
+                ppl = 0
             print('| epoch {:3d} | {:5d}/{:5d} documents | '
                   'lr {:02.2f} | ms/batch {:5.2f} | '
                   'loss {:5.2f} | ppl {:8.2f}'.format(
@@ -73,7 +77,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
                       scheduler.get_lr()[0],
                       elapsed * 1000 / log_interval,
                       cur_loss,
-                      np.exp(np.float128(cur_loss))))
+                      ppl))
             total_loss = 0
             start_time = time.time()
 
@@ -126,11 +130,15 @@ if __name__ == '__main__':
               optimizer, scheduler, numericalizer, epoch=epoch)
         val_loss = evaluate(model, val_corpus, umls_concepts, numericalizer)
         print('-' * 89)
+        try:
+            valid_ppl = math.exp(val_loss)
+        except OverflowError:
+            print("validation ppl too large to compute")
+            valid_ppl = 0
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
               'valid ppl {:8.2f}'.format(epoch + 1,
                                          (time.time() - epoch_start_time),
-                                         val_loss,
-                                         np.exp(np.float128(val_loss))))
+                                         val_loss, valid_ppl))
         print('-' * 89)
 
         if val_loss < best_val_loss:
