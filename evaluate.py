@@ -55,6 +55,11 @@ if __name__ == '__main__':
     test_loss = evaluate(best_model, test_corpus,
                          numericalizer, umls_concepts)
     print('=' * 89)
+    try:
+        test_ppl = math.exp(test_loss)
+    except OverflowError:
+        print("Test ppl too large to compute")
+        test_ppl = 0
     print('| End of training | test loss {:5.2f} | test ppl {:8.2f}'.format(
-        test_loss, math.exp(test_loss)))
+        test_loss, test_ppl))
     print('=' * 89)
