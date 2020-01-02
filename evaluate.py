@@ -51,7 +51,7 @@ if __name__ == '__main__':
 
     # start test
     test_loss = evaluate(best_model, test_corpus,
-                         numericalizer, umls_concepts)
+                         umls_concepts, numericalizer)
     print('=' * 89)
     try:
         test_ppl = math.exp(test_loss)
