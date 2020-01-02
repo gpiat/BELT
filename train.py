@@ -48,8 +48,6 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             if i % batch_size == 0:
                 optimizer.zero_grad()
                 output = model(data, target_words)
-                print("output: ", output.shape)
-                print("targets: ", targets.shape)
                 loss = criterion(output, targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)

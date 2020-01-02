@@ -27,8 +27,6 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
 
                 output = model(data.unsqueeze(0), target_words=torch.Tensor(
                     [text[i]]).to(cst.device))
-                print("output shape in eval: ", output.shape)
-                print("target shape in eval: ", target.shape)
                 total_loss += (len(data) *
                                cst.criterion(output, target).item())
 
