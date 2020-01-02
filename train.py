@@ -1,5 +1,6 @@
 import constants as cst
 import math
+import numpy as np
 import pickle
 import time
 import torch
@@ -7,9 +8,9 @@ import torch
 from constants import criterion
 from constants import device
 
+from util import Numericalizer
 from util import get_start_end_indices
 from util import get_text_window
-from util import Numericalizer
 
 from evaluate import evaluate
 from model import TransformerModel
@@ -72,7 +73,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
                       scheduler.get_lr()[0],
                       elapsed * 1000 / log_interval,
                       cur_loss,
-                      math.exp(cur_loss)))
+                      np.exp(np.float128(cur_loss))))
             total_loss = 0
             start_time = time.time()
 
@@ -128,7 +129,8 @@ if __name__ == '__main__':
         print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
               'valid ppl {:8.2f}'.format(epoch + 1,
                                          (time.time() - epoch_start_time),
-                                         val_loss, math.exp(val_loss)))
+                                         val_loss,
+                                         np.exp(np.float128(val_loss))))
         print('-' * 89)
 
         if val_loss < best_val_loss:
