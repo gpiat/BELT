@@ -55,7 +55,7 @@ def create_corpora():
 
 
 def pickle_corpora():
-    train_corpus = MedMentionsCorpus([cst.med_corpus_train])
+    train_corpus = MedMentionsCorpus([cst.med_corpus_train], auto_looping=True)
     val_corpus = MedMentionsCorpus([cst.med_corpus_val])
     test_corpus = MedMentionsCorpus([cst.med_corpus_test])
 
