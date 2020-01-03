@@ -64,10 +64,18 @@ class MedMentionsDocument:
             text (list<str>): title fused with abstract but as a list of words
             umls_entities (list<UMLS_Entity>): list of UMLS entity
                 mentions in the text
-            raw_text: 
+            raw_text (str): simple concatenation of title and abstract. The
+                indexing of characters in raw_text matches the one used in
+                PubTator entity mention annotations.
     """
 
-    def __init__(self, title, abstract, umls_entities):
+    def __init__(self, title, abstract, umls_mentions):
+        """ Args:
+                - (str) title: raw title line of text
+                - (str) abstract: raw abstract line of text
+                - (list<str>) umls_mentions: list of raw lines of text
+                    containing the UMLS entity mentions.
+        """
         self.pmid, self.title = text_preprocess(title)
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
@@ -76,10 +84,12 @@ class MedMentionsDocument:
         # can't split raw_text because of missing
         # space between title and abstract
         self.text = [*self.title.split(), *self.abstract.split()]
-        self.umls_entities = [UMLS_Entity(entity) for entity in umls_entities]
+        self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
     def get_cuid(self, word_idx):
-        """ Args:
+        """ Returns the CUID of a word given its index (returns
+            [None? 0? TODO] if not part of a UMLS concept mention)
+            Args:
                 word_idx (int): index of the word in self.text
         """
         # The idea here is to find the CUID of a word despite only having the
