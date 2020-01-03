@@ -184,6 +184,7 @@ class MedMentionsCorpus:
             self._currentfile += 1
             if self._currentfile >= len(self._filenames) and self._looping:
                 self.loop_documents()
+                return
 
     def loop_documents(self):
         """ Restarts the document file counter. This only takes
