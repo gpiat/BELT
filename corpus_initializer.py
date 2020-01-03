@@ -6,15 +6,9 @@ from sys import argv
 from medmentions import MedMentionsCorpus
 
 
-# def _full_vocab_initializer(corpus):
-#     """
-#     """
-#     vocab = {'<unk>': 0, '<pad>': 1, '<sos>': 2, '<eos>': 3}
-#     vocab = {word: (number + 4) for number, word in enumerate(corpus.vocab)}
-#     return vocab
-
 def _UMLS_concepts_initializer(corpus):
-    """
+    """ Given a MedMentionsCorpus-like object as argument, which contains a
+        collection of CUIDs, returns a dictionary mapping CUIDs to indices.
     """
     umls_concepts = sorted(list(corpus.cuids))
     # we'll need to find the index given the CUID later so it's
@@ -28,7 +22,12 @@ def _UMLS_concepts_initializer(corpus):
 
 
 def UMLS_concepts_init(outfile=cst.umls_fname, corpora=None):
-    """
+    """ Pickles a dictionary mapping CUIDs found in a list of corpora to indices.
+        Args:
+            - (str) outfile: path of the file to write the pickle to.
+                Defaults to the file name given in constants.py.
+            - (list<str>) corpora: filenames of the PubTator-format
+                corpora to use. All the CUIDs used come from these corpora.
     """
     if corpora is None:
         corpora = [cst.full_corpus_fname]
@@ -39,6 +38,12 @@ def UMLS_concepts_init(outfile=cst.umls_fname, corpora=None):
 
 
 def create_corpora():
+    """ Splits the full corpus given in constants.py into training, validation,
+        and test corpora. The proportions of documents going into each corpus
+        are set in constants.py as well. These smaller corpora are written to
+        the disk (destination file names are set in constants.py) in plaintext
+        PubTator format.
+    """
     # creating sub-corpora for train, test and validation
     full_corpus = MedMentionsCorpus([cst.full_corpus_fname])
     n_train_docs = int(cst.train_proportion * full_corpus.n_documents)
@@ -55,6 +60,11 @@ def create_corpora():
 
 
 def pickle_corpora():
+    """ Creates MedMentionsCorpus objects based on the train, validation and
+        test corpora whose filenames are set in constants.py, which are then
+        pickled. This avoids object creation overhead (which is fairly
+        expensive) when running many experiments on the same corpus.
+    """
     train_corpus = MedMentionsCorpus([cst.med_corpus_train], auto_looping=True)
     val_corpus = MedMentionsCorpus([cst.med_corpus_val])
     test_corpus = MedMentionsCorpus([cst.med_corpus_test])

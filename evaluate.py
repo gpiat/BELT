@@ -9,7 +9,22 @@ from util import get_text_window
 
 
 def evaluate(model, corpus, umls_concepts, numericalizer,
-             window_size=20, batch_size=35):
+             window_size=20):
+    """ Evaluates a BELT model
+        Args:
+            - (TransformerModel) model: the model to evaluate
+            - (MedMentionsCorpus) corpus: the evaluation corpus
+            - (dict) umls_concepts: a dict mapping UMLS CUIDs to
+                indices. Assumes all the CUIDs used in the corpus
+                are indexed in umls_concepts.
+            - (util.Numericalizer) numericalizer: converts words to
+                numbers for the purpose of input to the model. This
+                should be consistent with the numericalizer that was
+                used in training.
+            - (int) window_size: number of words that should be considered
+                at a time (defaults to 20). Should be consistent with
+                the length of phrases at training time.
+    """
     model.eval()  # Turn on the evaluation mode
     total_loss = 0.
     with torch.no_grad():
@@ -22,8 +37,6 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
                 target = torch.Tensor(
                     [umls_concepts[document.get_cuid(i)]]
                 ).long().to(cst.device)
-                # targets = torch.zeros(len(umls_concepts))
-                # targets[target] = 1
 
                 output = model(data.unsqueeze(0), target_words=torch.Tensor(
                     [text[i]]).to(cst.device))
