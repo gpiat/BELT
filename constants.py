@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import os
 
 criterion = nn.CrossEntropyLoss()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -16,7 +17,7 @@ train_proportion = 2 / 3
 test_proportion = 1 / 6
 assert (train_proportion + test_proportion < 1)
 
-pkl_prefix = "/home/gpiat/Documents/projects/entity_linking_transformers/pickles/"
+pkl_prefix = os.path.dirname(os.path.realpath(__file__)) + "/pickles/"
 umls_fname = pkl_prefix + "umls_concepts.pkl"
 train_fname = pkl_prefix + "train.pkl"
 val_fname = pkl_prefix + "val.pkl"
