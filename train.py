@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
     # start train
     best_val_loss = float("inf")
-    epochs = 1  # The number of epochs
+    epochs = 10  # The number of epochs
     best_model = None
 
     for epoch in range(epochs):
