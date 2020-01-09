@@ -157,9 +157,9 @@ class MedMentionsCorpus:
         self._filenames = fnames
         self._currentfile = 0
         self._looping = auto_looping
+        self.no_punct = no_punct
         self.n_documents, self.cuids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
-        self.no_punct = no_punct
 
     def _get_cuids_and_vocab(self):
         """ Collects the CUIDs and vocabulary of the corpus.
