@@ -1,3 +1,5 @@
+import string
+
 
 def text_preprocess(text):
     """ Takes the raw title and abstract as written in the file
@@ -69,21 +71,31 @@ class MedMentionsDocument:
                 PubTator entity mention annotations.
     """
 
-    def __init__(self, title, abstract, umls_mentions):
+    def __init__(self, title, abstract, umls_mentions, no_punct=False):
         """ Args:
                 - (str) title: raw title line of text
                 - (str) abstract: raw abstract line of text
-                - (list<str>) umls_mentions: list of raw lines of text
-                    containing the UMLS entity mentions.
+                - (list<str>) umls_mentions: list of raw lines
+                    of text containing the UMLS entity mentions.
+                - no_punct (bool): Defaults to False. If True,
+                    removes punctuation from the `text` attribute.
+                    This will cause training to fail as UMLS mentions
+                    will no longer align with the text.
         """
         self.pmid, self.title = text_preprocess(title)
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
         self.raw_text = self.title + self.abstract
+
+        if no_punct:
+            title_nopunct = self.title.translate(
+                str.maketrans('', '', string.punctuation))
+            abs_nopunct = self.abstract.translate(
+                str.maketrans('', '', string.punctuation))
         # can't split raw_text because of missing
         # space between title and abstract
-        self.text = [*self.title.split(), *self.abstract.split()]
+        self.text = [*title_nopunct.split(), *abs_nopunct.split()]
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
     def get_cuid(self, word_idx):
@@ -131,17 +143,22 @@ class MedMentionsCorpus:
         documents with the documents() generator function.
     """
 
-    def __init__(self, fnames, auto_looping=False):
+    def __init__(self, fnames, auto_looping=False, no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
                 - auto_looping (bool): whether retrieving documents should
                     automatically loop or not
+                - no_punct (bool): Defaults to False. If True, removes
+                    punctuation from each document's `text` attribute.
+                    This will cause training to fail as UMLS mentions
+                    will no longer align with the text.
         """
         self._filenames = fnames
         self._currentfile = 0
         self._looping = auto_looping
         self.n_documents, self.cuids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
+        self.no_punct = no_punct
 
     def _get_cuids_and_vocab(self):
         """ Collects the CUIDs and vocabulary of the corpus.
@@ -188,7 +205,8 @@ class MedMentionsCorpus:
                     umls_entities.append(next_line[:-1])
                     next_line = f.readline()
 
-                yield MedMentionsDocument(title, abstract, umls_entities)
+                yield MedMentionsDocument(title, abstract,
+                                          umls_entities, self.no_punct)
             f.close()
 
             self._currentfile += 1
