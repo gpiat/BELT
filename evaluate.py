@@ -27,8 +27,10 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
     """
     model.eval()  # Turn on the evaluation mode
     total_loss = 0.
+    text_tagged = []
     with torch.no_grad():
         for document in corpus.documents():
+            document_tagged = []
             text = numericalizer.numericalize_text(document.text)
             for i in range(len(text)):
                 s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
@@ -37,13 +39,18 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
                 target = torch.Tensor(
                     [umls_concepts[document.get_cuid(i)]]
                 ).long().to(cst.device)
+                print(target)
 
                 output = model(data.unsqueeze(0), target_words=torch.Tensor(
                     [text[i]]).to(cst.device))
+                print(output)
+
                 total_loss += (len(data) *
                                cst.criterion(output, target).item())
+            text_tagged.append(document_tagged)
 
     return total_loss / (corpus.n_documents - 1)
+
 
 
 if __name__ == '__main__':
