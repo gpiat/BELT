@@ -94,9 +94,11 @@ class MedMentionsDocument:
                 str.maketrans('', '', string.punctuation))
             abs_nopunct = self.abstract.translate(
                 str.maketrans('', '', string.punctuation))
-        # can't split raw_text because of missing
-        # space between title and abstract
-        self.text = [*title_nopunct.split(), *abs_nopunct.split()]
+            # can't split raw_text because of missing
+            # space between title and abstract
+            self.text = [*title_nopunct.split(), *abs_nopunct.split()]
+        else:
+            self.text = [*self.title.split(), *self.abstract.split()]
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
     def get_cuid(self, word_idx):
