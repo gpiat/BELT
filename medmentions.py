@@ -88,6 +88,7 @@ class MedMentionsDocument:
         # with MedMentions PubTator format.
         self.raw_text = self.title + self.abstract
 
+        self.no_punct = no_punct
         if no_punct:
             title_nopunct = self.title.translate(
                 str.maketrans('', '', string.punctuation))
