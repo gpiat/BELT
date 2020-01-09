@@ -32,8 +32,7 @@ class PositionalEncoding(nn.Module):
 class TransformerModel(nn.Module):
 
     def __init__(self, ntoken, n_umls_concepts, embed_size,
-                 nhead, nhid, nlayers,  # batch_size,
-                 phrase_len, dropout=0.5):
+                 nhead, nhid, nlayers, phrase_len, dropout=0.5):
         """Args:
             - <int> ntoken: vocabulary size
             - <int> n_umls_concepts: number of UMLS concepts to choose from
@@ -41,7 +40,6 @@ class TransformerModel(nn.Module):
             - <int> nhead: number of heads in the multiheadattention models
             - <int> nhid: dimension of the FFNN in the encoder
             - <int> nlayers: number of TransformerEncoderLayer in encoder
-            - <int> batch_size: number of phrases processed simultaneously
             - <int> phrase_len: number of words in each phrase processed
             - <float> dropout
         """
@@ -55,7 +53,6 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.decoder = nn.Linear(embed_size, n_umls_concepts + 1)
         self.decoder2 = nn.Linear(phrase_len + 1, 1)
-        self.softmax = nn.LogSoftmax(dim=0)
 
         self.embed_size = embed_size
         self.init_weights()
