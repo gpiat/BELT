@@ -9,7 +9,16 @@ from util import get_start_end_indices
 from util import get_text_window
 
 
-def get_prec_rec_f1(predictions, targets):
+def get_mention_prec_rec_f1(predictions, targets):
+    """ Computes precision, recall and F1 at mention level.
+        Args:
+            predictions (list<list<int>>)
+            targets (list<list<int>>)
+        Return:
+            precision (float)
+            recall (float)
+            f1 (float)
+    """
     tp = 0
     tn = 0
     fp = 0
@@ -32,6 +41,35 @@ def get_prec_rec_f1(predictions, targets):
                        " False Negative. Prediction: " + str(prediction) +
                        " Target: " + str(target))
             raise ValueError(err_msg)
+
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    f1 = 2 * precision * recall / (precision + recall)
+    return precision, recall, f1
+
+
+def get_document_prec_rec_f1(predictions, targets):
+    """ Computes precision, recall and F1 at document level.
+        Args:
+            predictions (list<list<int>>)
+            targets (list<list<int>>)
+        Return:
+            precision (float)
+            recall (float)
+            f1 (float)
+    """
+    tp = 0
+    fp = 0
+    fn = 0
+    for doc_predictions, doc_targets in zip(predictions, targets):
+        for prediction in set(doc_predictions):
+            if prediction in doc_targets:
+                tp += 1
+            else:
+                fp += 1
+        for target in set(doc_targets):
+            if target not in predictions:
+                fn += 1
 
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
@@ -85,7 +123,9 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
 
     loss = total_loss / (corpus.n_documents - 1)
     if compute_p_r_f1:
-        return loss, get_prec_rec_f1(text_tagged, text_targets)
+        return (loss,
+                get_mention_prec_rec_f1(text_tagged, text_targets),
+                get_document_prec_rec_f1(text_tagged, text_targets))
     else:
         return loss
 
@@ -107,7 +147,9 @@ if __name__ == '__main__':
         best_model = pickle.load(model_file)
 
     # start test
-    test_loss, (precision, recall, f1) =\
+    (test_loss,
+     (mention_precision, mention_recall, mention_f1),
+     (doc_precision, doc_recall, doc_f1)) =\
         evaluate(best_model, test_corpus, umls_concepts,
                  numericalizer, compute_p_r_f1=True)
 
@@ -117,7 +159,10 @@ if __name__ == '__main__':
     except OverflowError:
         print("Test ppl too large to compute")
         test_ppl = 0
-    print('| End of training | test loss {:5.2f} |\
- test ppl {:8.2f} | precision {:5.2f} | recall {:5.2f} |\
- f1 {:8.2f}'.format(test_loss, test_ppl, precision, recall, f1))
+    print('End of training')
+    print('test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, test_ppl)
+    print('mention precision {:5.2f} | mention recall {:5.2f} |\
+ mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
+    print('document precision {:5.2f} | document recall {:5.2f} |\
+ document f1 {:8.2f}'.format(doc_precision, doc_recall, doc_f1))
     print('=' * 89)
