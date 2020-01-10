@@ -4,7 +4,6 @@ import pickle
 import torch
 
 from itertools import chain
-from numpy import argmax
 from sys import argv
 from util import get_start_end_indices
 from util import get_text_window
@@ -77,7 +76,7 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
 
                 output = model(data.unsqueeze(0), target_words=torch.Tensor(
                     [text[i]]).to(cst.device))
-                document_tagged.append(argmax(output))
+                document_tagged.append(int(torch.argmax(output)))
 
                 total_loss += (len(data) *
                                cst.criterion(output, target).item())
