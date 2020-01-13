@@ -110,7 +110,7 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
                 target = torch.Tensor(
                     [umls_concepts[document.get_cuid(i)]]
                 ).long().to(cst.device)
-                document_targets.append(target)
+                document_targets.append(int(target))
 
                 output = model(data.unsqueeze(0), target_words=torch.Tensor(
                     [text[i]]).to(cst.device))
