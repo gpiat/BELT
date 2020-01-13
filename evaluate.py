@@ -160,7 +160,7 @@ if __name__ == '__main__':
         print("Test ppl too large to compute")
         test_ppl = 0
     print('End of training')
-    print('test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, test_ppl)
+    print('test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, test_ppl))
     print('mention precision {:5.2f} | mention recall {:5.2f} |\
  mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
     print('document precision {:5.2f} | document recall {:5.2f} |\
