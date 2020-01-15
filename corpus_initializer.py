@@ -46,17 +46,22 @@ def create_corpora():
     """
     # creating sub-corpora for train, test and validation
     full_corpus = MedMentionsCorpus([cst.full_corpus_fname])
-    n_train_docs = int(cst.train_proportion * full_corpus.n_documents)
-    n_test_docs = int(cst.test_proportion * full_corpus.n_documents)
-    current_file = cst.med_corpus_train
-    for i, document in enumerate(full_corpus.documents()):
-        # figuring out where we are in the corpus
-        # to write to the appropriate file
-        if i > (n_train_docs + n_test_docs):
-            current_file = cst.med_corpus_val
-        elif i > n_train_docs:
-            current_file = cst.med_corpus_test
-        document.write_to(current_file)
+
+    pmids = {}
+    with open(cst.train_corpus_pmids, 'r') as f:
+        pmids['train'] = [pmid.strip() for pmid in f.readlines()]
+    with open(cst.val_corpus_pmids, 'r') as f:
+        pmids['val'] = [pmid.strip() for pmid in f.readlines()]
+    with open(cst.test_corpus_pmids, 'r') as f:
+        pmids['test'] = [pmid.strip() for pmid in f.readlines()]
+
+    for document in full_corpus.documents():
+        if document.pmid in pmids['train']:
+            document.write_to(cst.med_corpus_train)
+        elif document.pmid in pmids['val']:
+            document.write_to(cst.med_corpus_val)
+        elif document.pmid in pmids['test']:
+            document.write_to(cst.med_corpus_test)
 
 
 def pickle_corpora():
