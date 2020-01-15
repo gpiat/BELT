@@ -1,4 +1,5 @@
 import constants as cst
+import csv
 import math
 import pickle
 import time
@@ -121,22 +122,34 @@ if __name__ == '__main__':
     best_val_loss = float("inf")
     epochs = 10  # The number of epochs
     best_model = None
+    epochs_info = [["time", "train loss", "validation loss", "perplexity"]]
 
     for epoch in range(epochs):
         epoch_start_time = time.time()
         train(model, train_corpus, umls_concepts,
               optimizer, scheduler, numericalizer, epoch=epoch)
-        val_loss = evaluate(model, val_corpus, umls_concepts, numericalizer)
+
+        train_loss = evaluate(model,
+                              train_corpus,
+                              umls_concepts,
+                              numericalizer)
+        val_loss = evaluate(model,
+                            val_corpus,
+                            umls_concepts,
+                            numericalizer)
+
         print('-' * 89)
         try:
             valid_ppl = math.exp(val_loss)
         except OverflowError:
             print("validation ppl too large to compute")
-            valid_ppl = 0
-        print('| end of epoch {:3d} | time: {:5.2f}s | valid loss {:5.2f} | '
-              'valid ppl {:8.2f}'.format(epoch + 1,
-                                         (time.time() - epoch_start_time),
-                                         val_loss, valid_ppl))
+            valid_ppl = "NA"
+        current_epoch_info = [str(time.time() - epoch_start_time),
+                              str(train_loss),
+                              str(val_loss),
+                              str(valid_ppl)]
+        epochs_info.append(current_epoch_info)
+        print(current_epoch_info)
         print('-' * 89)
 
         if val_loss < best_val_loss:
@@ -145,6 +158,9 @@ if __name__ == '__main__':
 
         scheduler.step()
 
+    with open(cst.train_stats_fname, 'w') as train_stats_file:
+        writer = csv.csvwriter(train_stats_file, delimiter=';')
+        writer.writerows(epochs_info)
     with open(model_fname, 'wb') as model_file:
         pickle.dump(best_model, model_file)
     with open(cst.numer_fname, 'wb') as numericalizer_file:
