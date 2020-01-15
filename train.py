@@ -82,22 +82,30 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
 
 
 if __name__ == '__main__':
-    try:
-        _, train_fname, val_fname, model_fname = argv
-    except ValueError:
-        print("Failed unpacking training corpus filename, "
-              "validation corpus filename, and model destination "
-              "filename from arguments. Proceeding with default values.")
-        train_fname = cst.train_fname
-        val_fname = cst.val_fname
-        model_fname = cst.model_fname
+    args = {}
+    args['--train_fname'] = cst.train_fname
+    args['--val_fname'] = cst.val_fname
+    args['--model_fname'] = cst.model_fname
+    args['--epochs'] = 10
+
+    i = 1
+    while i < len(argv) - 1:
+        if argv[i] in args.keys():
+            args[argv[i]] = argv[i + 1]
+    args['--epochs'] = int(args['--epochs'])
+    # try:
+    #     _, train_fname, val_fname, model_fname = argv
+    # except ValueError:
+    #     print("Failed unpacking training corpus filename, "
+    #           "validation corpus filename, and model destination "
+    #           "filename from arguments. Proceeding with default values.")
 
     try:
-        with open(train_fname, 'rb') as train_file:
+        with open(args['--train_fname'], 'rb') as train_file:
             train_corpus = pickle.load(train_file)
         with open(cst.umls_fname, 'rb') as umls_con_file:
             umls_concepts = pickle.load(umls_con_file)
-        with open(val_fname, 'rb') as val_file:
+        with open(args['--val_fname'], 'rb') as val_file:
             val_corpus = pickle.load(val_file)
     except pickle.UnpicklingError:
         print("Something went wrong when unpickling train, test, or "
@@ -120,11 +128,10 @@ if __name__ == '__main__':
 
     # start train
     best_val_loss = float("inf")
-    epochs = 10  # The number of epochs
     best_model = None
     epochs_info = [["time", "train loss", "validation loss", "perplexity"]]
 
-    for epoch in range(epochs):
+    for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
         train(model, train_corpus, umls_concepts,
               optimizer, scheduler, numericalizer, epoch=epoch)
@@ -161,7 +168,7 @@ if __name__ == '__main__':
     with open(cst.train_stats_fname, 'w') as train_stats_file:
         writer = csv.csvwriter(train_stats_file, delimiter=';')
         writer.writerows(epochs_info)
-    with open(model_fname, 'wb') as model_file:
+    with open(args['--model_fname'], 'wb') as model_file:
         pickle.dump(best_model, model_file)
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
