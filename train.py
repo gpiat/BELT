@@ -92,6 +92,7 @@ if __name__ == '__main__':
     while i < len(argv) - 1:
         if argv[i] in args.keys():
             args[argv[i]] = argv[i + 1]
+        i += 1
     args['--epochs'] = int(args['--epochs'])
     # try:
     #     _, train_fname, val_fname, model_fname = argv
