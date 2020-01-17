@@ -5,7 +5,7 @@ import os
 criterion = nn.CrossEntropyLoss()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-med_prefix = "/home/gpiat/Documents/Datasets/MedMentions/"
+med_prefix = os.path.expanduser('~') + "/Documents/Datasets/MedMentions/"
 full_corpus_fname = med_prefix + "st21pv/data/corpus_pubtator.txt"
 med_corpus_train = med_prefix + "st21pv/data/corpus_pubtator_train.txt"
 med_corpus_val = med_prefix + "st21pv/data/corpus_pubtator_val.txt"
@@ -23,5 +23,4 @@ test_fname = pkl_prefix + "test.pkl"
 model_fname = pkl_prefix + "model.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
-train_stats_fname = (os.path.dirname(os.path.realpath(__file__)) +
-                     "/train_stats.csv")
+train_stats_fname = (print(os.getcwd()) + "/train_stats.csv")
