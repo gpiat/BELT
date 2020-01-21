@@ -87,6 +87,7 @@ if __name__ == '__main__':
     args['--val_fname'] = cst.val_fname
     args['--model_fname'] = cst.model_fname
     args['--epochs'] = 10
+    args['--writepath'] = cst.wd
 
     i = 1
     while i < len(argv) - 1:
@@ -166,7 +167,8 @@ if __name__ == '__main__':
 
         scheduler.step()
 
-    with open(cst.train_stats_fname, 'w') as train_stats_file:
+    with open((args["--writepath"] +
+               cst.train_stats_fname), 'w') as train_stats_file:
         writer = csv.writer(train_stats_file, delimiter=';')
         writer.writerows(epochs_info)
     with open(args['--model_fname'], 'wb') as model_file:

@@ -23,4 +23,5 @@ test_fname = pkl_prefix + "test.pkl"
 model_fname = pkl_prefix + "model.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
-train_stats_fname = (print(os.getcwd()) + "/train_stats.csv")
+wd = os.getcwd()
+train_stats_fname = "/train_stats.csv"
