@@ -131,21 +131,33 @@ if __name__ == '__main__':
     # start train
     best_val_loss = float("inf")
     best_model = None
-    epochs_info = [["time", "train loss", "validation loss", "perplexity"]]
+    epochs_info = [["time", "train loss", "validation loss", "perplexity",
+                    "train mention precision", "train mention recall",
+                    "train mention F1", "train document precision",
+                    "train document recall", "train document F1",
+                    "val mention precision", "val mention recall",
+                    "val mention F1", "val document precision",
+                    "val document recall", "val document F1"]]
 
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
         train(model, train_corpus, umls_concepts,
               optimizer, scheduler, numericalizer, epoch=epoch)
 
-        train_loss = evaluate(model,
-                              train_corpus,
-                              umls_concepts,
-                              numericalizer)
-        val_loss = evaluate(model,
-                            val_corpus,
-                            umls_concepts,
-                            numericalizer)
+        (train_loss,
+         train_mention_p_r_f1,
+         train_doc_p_r_f1) = evaluate(model,
+                                      train_corpus,
+                                      umls_concepts,
+                                      numericalizer,
+                                      compute_p_r_f1=True)
+        (val_loss,
+         val_mention_p_r_f1,
+         val_doc_p_r_f1) = evaluate(model,
+                                    val_corpus,
+                                    umls_concepts,
+                                    numericalizer,
+                                    compute_p_r_f1=True)
 
         print('-' * 89)
         try:
@@ -156,7 +168,11 @@ if __name__ == '__main__':
         current_epoch_info = [str(time.time() - epoch_start_time),
                               str(train_loss),
                               str(val_loss),
-                              str(valid_ppl)]
+                              str(valid_ppl),
+                              *train_mention_p_r_f1,
+                              *train_doc_p_r_f1,
+                              *val_mention_p_r_f1,
+                              *val_doc_p_r_f1]
         epochs_info.append(current_epoch_info)
         print(current_epoch_info)
         print('-' * 89)
