@@ -70,10 +70,18 @@ def get_document_prec_rec_f1(predictions, targets):
         for target in set(doc_targets):
             if target not in predictions:
                 fn += 1
-
-    precision = tp / (tp + fp)
-    recall = tp / (tp + fn)
-    f1 = 2 * precision * recall / (precision + recall)
+    try:
+        precision = tp / (tp + fp)
+    except ZeroDivisionError:
+        precision = 0
+    try:
+        recall = tp / (tp + fn)
+    except ZeroDivisionError:
+        recall = 0
+    try:
+        f1 = 2 * precision * recall / (precision + recall)
+    except ZeroDivisionError:
+        f1 = 0
     return precision, recall, f1
 
 
