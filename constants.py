@@ -20,8 +20,8 @@ umls_fname = pkl_prefix + "umls_concepts.pkl"
 train_fname = pkl_prefix + "train.pkl"
 val_fname = pkl_prefix + "val.pkl"
 test_fname = pkl_prefix + "test.pkl"
-model_fname = pkl_prefix + "model.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
 wd = os.getcwd()
 train_stats_fname = "/train_stats.csv"
+model_fname = wd + "/model.pkl"
