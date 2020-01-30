@@ -24,4 +24,4 @@ numer_fname = pkl_prefix + "numericalizer.pkl"
 
 wd = os.getcwd()
 train_stats_fname = "/train_stats.csv"
-model_fname = wd + "/model.pkl"
+model_fname = "/model.pkl"

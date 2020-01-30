@@ -14,10 +14,11 @@ def _UMLS_concepts_initializer(corpus):
     # we'll need to find the index given the CUID later so it's
     # easier to switch values and indices right away. We add 1 to
     # the index to reserve the zeroth index
-    umls_concepts = {cuid: (index + 1)
+    umls_concepts = {cuid: (index + 2)
                      for index, cuid in enumerate(umls_concepts)}
     # the zeroth concept is the non-concept.
     umls_concepts[None] = 0
+    umls_concepts["other"] = 1
     return umls_concepts
 
 
