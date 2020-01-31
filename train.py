@@ -119,6 +119,9 @@ if __name__ == '__main__':
               "as argument or in constants.py exists.")
 
     numericalizer = Numericalizer(train_corpus.vocab)
+    with open(cst.numer_fname, 'wb') as numericalizer_file:
+        pickle.dump(numericalizer, numericalizer_file)
+
     model = TransformerModel(ntoken=len(numericalizer.vocab),
                              n_umls_concepts=len(umls_concepts),
                              embed_size=200, nhead=2, nhid=200,
@@ -176,6 +179,11 @@ if __name__ == '__main__':
         epochs_info.append(current_epoch_info)
         print(current_epoch_info)
         print('-' * 89)
+        # write epoch info at every epoch
+        with open((args["--writepath"] +
+                   cst.train_stats_fname), 'wa') as train_stats_file:
+            writer = csv.writer(train_stats_file, delimiter=';')
+            writer.writerow(current_epoch_info)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -185,10 +193,3 @@ if __name__ == '__main__':
                 pickle.dump(best_model, model_file)
 
         scheduler.step()
-
-    with open((args["--writepath"] +
-               cst.train_stats_fname), 'w') as train_stats_file:
-        writer = csv.writer(train_stats_file, delimiter=';')
-        writer.writerows(epochs_info)
-    with open(cst.numer_fname, 'wb') as numericalizer_file:
-        pickle.dump(numericalizer, numericalizer_file)
