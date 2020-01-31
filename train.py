@@ -141,6 +141,10 @@ if __name__ == '__main__':
                     "val mention precision", "val mention recall",
                     "val mention F1", "val document precision",
                     "val document recall", "val document F1"]]
+    with open((args["--writepath"] +
+               cst.train_stats_fname), 'w') as train_stats_file:
+        writer = csv.writer(train_stats_file, delimiter=';')
+        writer.writerows(epochs_info)
 
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
@@ -181,7 +185,7 @@ if __name__ == '__main__':
         print('-' * 89)
         # write epoch info at every epoch
         with open((args["--writepath"] +
-                   cst.train_stats_fname), 'wa') as train_stats_file:
+                   cst.train_stats_fname), 'a') as train_stats_file:
             writer = csv.writer(train_stats_file, delimiter=';')
             writer.writerow(current_epoch_info)
 
