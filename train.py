@@ -88,6 +88,7 @@ if __name__ == '__main__':
     args['--model_fname'] = cst.model_fname
     args['--epochs'] = 10
     args['--writepath'] = cst.wd
+    args['--optim'] = "SGD"
 
     i = 1
     while i < len(argv) - 1:
@@ -128,7 +129,32 @@ if __name__ == '__main__':
                              nlayers=2,  # batch_size=35,
                              phrase_len=20, dropout=0.2).to(device)
     print("running on: ", device)
-    optimizer = torch.optim.SGD(model.parameters(), lr=5.0)  # lr=learning rate
+
+    # optimizer selection
+    opt = args['--optim'].lower()
+    if opt == "adam":
+        optimizer = torch.optim.Adam(model.parameters())
+    elif opt == "adamw":
+        optimizer = torch.optim.AdamW(model.parameters())
+    elif opt == "adamax":
+        optimizer = torch.optim.Adamax(model.parameters())
+    elif opt == "adagrad":
+        optimizer = torch.optim.Adagrad(model.parameters())
+    elif opt == "adadelta":
+        optimizer = torch.optim.Adadelta(model.parameters())
+    elif opt == "sparseadam":
+        optimizer = torch.optim.SparseAdam(model.parameters())
+    elif opt == "lbfgs":
+        optimizer = torch.optim.LBFGS(model.parameters())
+    elif opt == "rmsprop":
+        optimizer = torch.optim.RMSprop(model.parameters())
+    elif opt == "rprop":
+        optimizer = torch.optim.Rprop(model.parameters())
+    elif opt == "asgd":
+        optimizer = torch.optim.ASGD(model.parameters())
+    else:
+        optimizer = torch.optim.SGD(model.parameters(), lr=5.0)
+
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
     # start train
