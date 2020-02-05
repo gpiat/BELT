@@ -191,6 +191,7 @@ if __name__ == '__main__':
                                     umls_concepts,
                                     numericalizer,
                                     compute_p_r_f1=True)
+        val_corpus.loop_documents()
 
         print('-' * 89)
         try:
