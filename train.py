@@ -89,6 +89,7 @@ if __name__ == '__main__':
     args['--epochs'] = 10
     args['--writepath'] = cst.wd
     args['--optim'] = "SGD"
+    args['--lr'] = 5
 
     i = 1
     while i < len(argv) - 1:
@@ -96,6 +97,7 @@ if __name__ == '__main__':
             args[argv[i]] = argv[i + 1]
         i += 1
     args['--epochs'] = int(args['--epochs'])
+    args['--lr'] = int(args['--lr'])
     # try:
     #     _, train_fname, val_fname, model_fname = argv
     # except ValueError:
@@ -153,9 +155,9 @@ if __name__ == '__main__':
     elif opt == "asgd":
         optimizer = torch.optim.ASGD(model.parameters())
     else:
-        optimizer = torch.optim.SGD(model.parameters(), lr=5.0)
+        optimizer = torch.optim.SGD(model.parameters(), lr=args['--lr'])
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
 
     # start train
     best_val_loss = float("inf")
