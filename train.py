@@ -97,7 +97,7 @@ if __name__ == '__main__':
             args[argv[i]] = argv[i + 1]
         i += 1
     args['--epochs'] = int(args['--epochs'])
-    args['--lr'] = int(args['--lr'])
+    args['--lr'] = float(args['--lr'])
     # try:
     #     _, train_fname, val_fname, model_fname = argv
     # except ValueError:
