@@ -3,7 +3,6 @@ import math
 import pickle
 import torch
 
-from itertools import chain
 from sys import argv
 from util import get_start_end_indices
 from util import get_text_window
@@ -13,8 +12,8 @@ def cuid_list_to_ranges(cuids):
     """ Args:
             cuids (list<int>): list of CUIDs, likely with repetitions
         Returns:
-            ranges (list<int, int, int>): list of ranges such that each
-                range is a tuple of the form <begin, end, CUID>.
+            ranges (list<[int, int, int]>): list of ranges such that each
+                range is a list of the form <begin, end, CUID>.
         Example:
             In:     0 0 0 0 4 4 4 4 4 0 1 1 1
                     ^     ^ ^       ^ ^ ^   ^
@@ -23,12 +22,12 @@ def cuid_list_to_ranges(cuids):
                                    beg+end
             Out: [(0, 3, 0), (4, 8, 4), (9, 9, 0), (10, 12, 1)]
     """
-    ranges = [(0, 0, cuids[0])]
+    ranges = [[0, 0, cuids[0]]]
     for i in range(1, len(cuids)):
         if cuids[i] == cuids[i - 1]:
             ranges[-1][1] = i
         else:
-            ranges.append((i, i, cuids[i]))
+            ranges.append([i, i, cuids[i]])
     return ranges
 
 
