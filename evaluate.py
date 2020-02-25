@@ -9,38 +9,83 @@ from util import get_start_end_indices
 from util import get_text_window
 
 
+def cuid_list_to_ranges(cuids):
+    """ Args:
+            cuids (list<int>): list of CUIDs, likely with repetitions
+        Returns:
+            ranges (list<int, int, int>): list of ranges such that each
+                range is a tuple of the form <begin, end, CUID>.
+        Example:
+            In:     0 0 0 0 4 4 4 4 4 0 1 1 1
+                    ^     ^ ^       ^ ^ ^   ^
+                    |     |beg     end| |   |
+                   beg   end          |beg end
+                                   beg+end
+            Out: [(0, 3, 0), (4, 8, 4), (9, 9, 0), (10, 12, 1)]
+    """
+    ranges = [(0, 0, cuids[0])]
+    for i in range(1, len(cuids)):
+        if cuids[i] == cuids[i - 1]:
+            ranges[-1][1] = i
+        else:
+            ranges.append((i, i, cuids[i]))
+    return ranges
+
+
 def get_mention_prec_rec_f1(predictions, targets):
     """ Computes precision, recall and F1 at mention level.
+        The original paper computes true positives, false positives and false
+        negatives based on ranges of characters, CUIDs and PMIDs. Here, the
+        PMID is not needed because the structure of the `predictions` and
+        `targets` lists already accounts for document differentiation, and
+        character-identifying indexes are replaced with word indexes.
+        These are in theory entirely equivalent.
         Args:
-            predictions (list<list<int>>)
-            targets (list<list<int>>)
+            predictions (list<list<int>>): each int represents the PMID of
+                a word, each list<int> represents a document.
+            targets (list<list<int>>): each int represents the PMID of
+                a word, each list<int> represents a document.
         Return:
             precision (float)
             recall (float)
             f1 (float)
     """
     tp = 0
-    tn = 0
+    # tn = 0
     fp = 0
     fn = 0
-    for prediction, target in zip(chain(*predictions), chain(*targets)):
-        if target == prediction == 0:
-            tn += 1
-        elif target == prediction != 0:
-            tp += 1
-        elif target == 0 != prediction:
-            fp += 1
-        elif target != 0 == prediction:
-            fn += 1
-        elif 0 != target != prediction != 0:
-            fp += 1
-            fn += 1
-        else:
-            err_msg = ("No condition could determine whether the case is of" +
-                       " a True Positive / True Negative / False Positive /" +
-                       " False Negative. Prediction: " + str(prediction) +
-                       " Target: " + str(target))
-            raise ValueError(err_msg)
+
+    for i in range(len(predictions)):  # == len(targets)
+        predictions_i_ranges = cuid_list_to_ranges(predictions[i])
+        targets_i_ranges = cuid_list_to_ranges(targets[i])
+
+        for prediction in predictions_i_ranges:
+            if prediction in targets_i_ranges:
+                tp += 1
+            else:
+                fp += 1
+        for target in targets_i_ranges:
+            if target not in predictions_i_ranges:
+                fn += 1
+
+    # for prediction, target in zip(chain(*predictions), chain(*targets)):
+    #     if target == prediction == 0:
+    #         tn += 1
+    #     elif target == prediction != 0:
+    #         tp += 1
+    #     elif target == 0 != prediction:
+    #         fp += 1
+    #     elif target != 0 == prediction:
+    #         fn += 1
+    #     elif 0 != target != prediction != 0:
+    #         fp += 1
+    #         fn += 1
+    #     else:
+    #         err_msg = ("No condition could determine whether the case is of" +
+    #                    " a True Positive / True Negative / False Positive /" +
+    #                    " False Negative. Prediction: " + str(prediction) +
+    #                    " Target: " + str(target))
+    #         raise ValueError(err_msg)
 
     try:
         precision = tp / (tp + fp)
@@ -60,8 +105,10 @@ def get_mention_prec_rec_f1(predictions, targets):
 def get_document_prec_rec_f1(predictions, targets):
     """ Computes precision, recall and F1 at document level.
         Args:
-            predictions (list<list<int>>)
-            targets (list<list<int>>)
+            predictions (list<list<int>>): each int represents the PMID of
+                a word, each list<int> represents a document.
+            targets (list<list<int>>): each int represents the PMID of
+                a word, each list<int> represents a document.
         Return:
             precision (float)
             recall (float)
