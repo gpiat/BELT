@@ -169,13 +169,18 @@ class MedMentionsCorpus:
             it relies on the document counter being at the start.
             If you need CUIDs or vocab, use the appropriate attributes.
         """
-        cuids = set()
+        cuids = {}
         vocab = set()
         n_documents = 0
         for document in self.documents():
             n_documents += 1
             for entity in document.umls_entities:
-                cuids.add(entity.concept_ID)
+                if entity.concept_ID in cuids:
+                    cuids[entity.concept_ID] += 1
+                else:
+                    cuids[entity.concept_ID] = 1
+                # old code from when cuids was a set
+                # cuids.add(entity.concept_ID)
             for word in document.text:
                 vocab.add(word)
         self.loop_documents()
