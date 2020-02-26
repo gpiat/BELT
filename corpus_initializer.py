@@ -105,7 +105,7 @@ if __name__ == '__main__':
         dct = 0
         if "--dct" in argv:
             # number that (hopefully) comes after "--dct" in argv
-            dct = int(argv[argv.index["--dct"] + 1])
+            dct = int(argv[argv.index("--dct") + 1])
         UMLS_concepts_init(dflt_cat_thresh=dct)
 
     if no_valid_args:
