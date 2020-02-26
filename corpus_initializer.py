@@ -42,7 +42,7 @@ def UMLS_concepts_init(outfile=cst.umls_fname,
     if corpora is None:
         corpora = [cst.full_corpus_fname]
     corpus = MedMentionsCorpus(corpora)
-    umls_concepts = _UMLS_concepts_initializer(corpus)
+    umls_concepts = _UMLS_concepts_initializer(corpus, dflt_cat_thresh)
     with open(outfile, 'wb') as f:
         pickle.dump(umls_concepts, f)
 
