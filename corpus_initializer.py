@@ -6,29 +6,38 @@ from sys import argv
 from medmentions import MedMentionsCorpus
 
 
-def _UMLS_concepts_initializer(corpus):
+def _UMLS_concepts_initializer(corpus, dct):
     """ Given a MedMentionsCorpus-like object as argument, which contains a
         collection of CUIDs, returns a dictionary mapping CUIDs to indices.
     """
-    umls_concepts = sorted(list(corpus.cuids))
     # we'll need to find the index given the CUID later so it's
-    # easier to switch values and indices right away. We add 1 to
-    # the index to reserve the zeroth index
-    umls_concepts = {cuid: (index + 2)
-                     for index, cuid in enumerate(umls_concepts)}
+    # easier to switch values and indices right away. We add 2 to
+    # the index to reserve the zeroth and first indices
+    umls_concepts = {cuid: (index + 2 if number > dct else 1)
+                     for index, (cuid, number) in
+                     enumerate(corpus.cuids.items())}
+
+    # TODO: erase this old code from before the
+    #   full default category implementation
+    # umls_concepts = {cuid: (index + 2)
+    #                  for index, cuid in enumerate(umls_concepts)}
+    # umls_concepts["other"] = 1
+
     # the zeroth concept is the non-concept.
     umls_concepts[None] = 0
-    umls_concepts["other"] = 1
     return umls_concepts
 
 
-def UMLS_concepts_init(outfile=cst.umls_fname, corpora=None):
+def UMLS_concepts_init(outfile=cst.umls_fname,
+                       corpora=None, dflt_cat_thresh=0):
     """ Pickles a dictionary mapping CUIDs found in a list of corpora to indices.
         Args:
             - (str) outfile: path of the file to write the pickle to.
                 Defaults to the file name given in constants.py.
             - (list<str>) corpora: filenames of the PubTator-format
                 corpora to use. All the CUIDs used come from these corpora.
+            - (int) dflt_cat_thresh: any CUID that appears fewer times than
+                this threshold is put in a "default" category.
     """
     if corpora is None:
         corpora = [cst.full_corpus_fname]
@@ -93,7 +102,11 @@ if __name__ == '__main__':
     if "--pickle" in argv:
         no_valid_args = False
         pickle_corpora()
-        UMLS_concepts_init()
+        dct = 0
+        if "--dct" in argv:
+            # number that (hopefully) comes after "--dct" in argv
+            dct = int(argv[argv.index["--dct"] + 1])
+        UMLS_concepts_init(dflt_cat_thresh=dct)
 
     if no_valid_args:
         print("No valid arguments passed.\n"
