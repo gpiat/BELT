@@ -17,8 +17,6 @@ from evaluate import evaluate
 from model import TransformerModel
 from sys import argv
 
-import sys
-
 
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
           window_size=20, batch_size=35, epoch=0, log_interval=200):
@@ -100,8 +98,6 @@ if __name__ == '__main__':
             args[argv[i]] = argv[i + 1]
         i += 1
     args['--epochs'] = int(args['--epochs'])
-    print([epoch for epoch in range(args['--epochs'])])
-    sys.exit()
     args['--lr'] = float(args['--lr'])
     # try:
     #     _, train_fname, val_fname, model_fname = argv
