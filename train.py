@@ -17,6 +17,9 @@ from model import TransformerModel
 from sys import argv
 
 
+import torch_optimizer
+
+
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
           window_size=20, batch_size=35, epoch=0, log_interval=200):
     model.train()  # Turn on the train mode
@@ -136,28 +139,46 @@ if __name__ == '__main__':
     opt = args['--optim'].lower()
     if opt == "adam":
         optimizer = torch.optim.Adam(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+    elif opt == "radam":
+        optimizer = torch_optimizer.RAdam(model.parameters(),
+                                          lr=0.001,
+                                          betas=(0.9, 0.999),
+                                          eps=1e-8,
+                                          weight_decay=0)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "adamw":
         optimizer = torch.optim.AdamW(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "adamax":
         optimizer = torch.optim.Adamax(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "adagrad":
         optimizer = torch.optim.Adagrad(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "adadelta":
         optimizer = torch.optim.Adadelta(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "sparseadam":
         optimizer = torch.optim.SparseAdam(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
     elif opt == "lbfgs":
         optimizer = torch.optim.LBFGS(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
     elif opt == "rmsprop":
         optimizer = torch.optim.RMSprop(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
     elif opt == "rprop":
         optimizer = torch.optim.Rprop(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
     elif opt == "asgd":
         optimizer = torch.optim.ASGD(model.parameters())
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
     else:
         optimizer = torch.optim.SGD(model.parameters(), lr=args['--lr'])
-
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
+                                                    10.0,
+                                                    gamma=0.01)
 
     # start train
     best_val_loss = float("inf")
