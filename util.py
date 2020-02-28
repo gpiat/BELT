@@ -133,7 +133,7 @@ def select_optimizer(option, model, lr):
     elif option == "rprop":
         optimizer = torch.optim.Rprop(model.parameters())
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "rprop":
+    elif option == "lamb":
         optimizer = torch_optimizer.Lamb(
             model.parameters(),
             lr=1e-3,
