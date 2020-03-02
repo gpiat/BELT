@@ -126,11 +126,17 @@ if __name__ == '__main__':
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
 
-    model = TransformerModel(ntoken=len(numericalizer.vocab),
-                             n_umls_concepts=len(umls_concepts),
-                             embed_size=200, nhead=2, nhid=200,
-                             nlayers=2,  # batch_size=35,
-                             phrase_len=20, dropout=0.2).to(device)
+    if '--resume' not in argv:
+        model = TransformerModel(ntoken=len(numericalizer.vocab),
+                                 n_umls_concepts=len(umls_concepts),
+                                 embed_size=200, nhead=2, nhid=200,
+                                 nlayers=2,  # batch_size=35,
+                                 phrase_len=20, dropout=0.2).to(device)
+    else:
+        with open(args['--writepath'] +
+                  args['--model_fname'], 'rb') as model_file:
+            model = pickle.load(model_file)
+
     print("running on: ", device)
 
     optimizer, scheduler = select_optimizer(
@@ -139,17 +145,18 @@ if __name__ == '__main__':
     # start train
     best_val_loss = float("inf")
     best_model = None
-    epochs_info = [["time", "train loss", "validation loss", "perplexity",
-                    "train mention precision", "train mention recall",
-                    "train mention F1", "train document precision",
-                    "train document recall", "train document F1",
-                    "val mention precision", "val mention recall",
-                    "val mention F1", "val document precision",
-                    "val document recall", "val document F1"]]
-    with open((args["--writepath"] +
-               cst.train_stats_fname), 'w') as train_stats_file:
-        writer = csv.writer(train_stats_file, delimiter=';')
-        writer.writerows(epochs_info)
+    if '--resume' not in argv:
+        epochs_info = [["time", "train loss", "validation loss", "perplexity",
+                        "train mention precision", "train mention recall",
+                        "train mention F1", "train document precision",
+                        "train document recall", "train document F1",
+                        "val mention precision", "val mention recall",
+                        "val mention F1", "val document precision",
+                        "val document recall", "val document F1"]]
+        with open((args["--writepath"] +
+                   cst.train_stats_fname), 'w') as train_stats_file:
+            writer = csv.writer(train_stats_file, delimiter=';')
+            writer.writerows(epochs_info)
 
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
