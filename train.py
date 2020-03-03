@@ -146,17 +146,18 @@ if __name__ == '__main__':
     best_val_loss = float("inf")
     best_model = None
     if '--resume' not in argv:
-        epochs_info = [["time", "train loss", "validation loss", "perplexity",
-                        "train mention precision", "train mention recall",
-                        "train mention F1", "train document precision",
-                        "train document recall", "train document F1",
-                        "val mention precision", "val mention recall",
-                        "val mention F1", "val document precision",
-                        "val document recall", "val document F1"]]
+        column_headers = [["time", "train loss", "validation loss",
+                           "perplexity", "train mention precision",
+                           "train mention recall", "train mention F1",
+                           "train document precision", "train document recall",
+                           "train document F1", "val mention precision",
+                           "val mention recall", "val mention F1",
+                           "val document precision", "val document recall",
+                           "val document F1"]]
         with open((args["--writepath"] +
                    cst.train_stats_fname), 'w') as train_stats_file:
             writer = csv.writer(train_stats_file, delimiter=';')
-            writer.writerows(epochs_info)
+            writer.writerows(column_headers)
 
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
@@ -193,7 +194,6 @@ if __name__ == '__main__':
                               *train_doc_p_r_f1,
                               *val_mention_p_r_f1,
                               *val_doc_p_r_f1]
-        epochs_info.append(current_epoch_info)
         print(current_epoch_info)
         print('-' * 89)
         # write epoch info at every epoch
