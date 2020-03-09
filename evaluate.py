@@ -140,6 +140,28 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
+def predict(model, document, window_size):
+    document_tagged = []
+    document_targets = []
+    text = numericalizer.numericalize_text(document.text)
+    for i in range(len(text)):
+        s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
+        data = get_text_window(text, window_size, s_idx, e_idx)
+
+        target = torch.Tensor(
+            [umls_concepts[document.get_cuid(i)]]
+        ).long().to(cst.device)
+        document_targets.append(int(target))
+
+        output = model(data.unsqueeze(0), target_words=torch.Tensor(
+            [text[i]]).to(cst.device))
+        document_tagged.append(int(torch.argmax(output)))
+
+        loss_increment = (len(data) *
+                          cst.criterion(output, target).item())
+        return document_tagged, document_targets, loss_increment
+
+
 def evaluate(model, corpus, umls_concepts, numericalizer,
              window_size=20, compute_p_r_f1=False):
     """ Evaluates a BELT model
@@ -163,24 +185,9 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
     text_targets = []
     with torch.no_grad():
         for document in corpus.documents():
-            document_tagged = []
-            document_targets = []
-            text = numericalizer.numericalize_text(document.text)
-            for i in range(len(text)):
-                s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
-                data = get_text_window(text, window_size, s_idx, e_idx)
-
-                target = torch.Tensor(
-                    [umls_concepts[document.get_cuid(i)]]
-                ).long().to(cst.device)
-                document_targets.append(int(target))
-
-                output = model(data.unsqueeze(0), target_words=torch.Tensor(
-                    [text[i]]).to(cst.device))
-                document_tagged.append(int(torch.argmax(output)))
-
-                total_loss += (len(data) *
-                               cst.criterion(output, target).item())
+            document_tagged, document_targets, loss_increment =\
+                predict(model, document, window_size)
+            total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
 
@@ -194,19 +201,21 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
 
 
 if __name__ == '__main__':
-    try:
-        _, test_fname, model_fname = argv
-    except Exception:
-        test_fname = cst.test_fname
-        model_fname = cst.model_fname
+    args = {}
+    args['--test_fname'] = cst.test_fname
+    args['--model_fname'] = cst.model_fname
+    args['--umls_fname'] = cst.umls_fname
+    args['--numer_fname'] = cst.numer_fname
+    args['--write_pred'] = False
+    args['--skip_eval'] = False
 
-    with open(cst.umls_fname, 'rb') as umls_con_file:
+    with open(args['--umls_fname'], 'rb') as umls_con_file:
         umls_concepts = pickle.load(umls_con_file)
-    with open(cst.numer_fname, 'rb') as numericalizer_file:
+    with open(args['--numer_fname'], 'rb') as numericalizer_file:
         numericalizer = pickle.load(numericalizer_file)
-    with open(test_fname, 'rb') as test_file:
+    with open(args['--test_fname'], 'rb') as test_file:
         test_corpus = pickle.load(test_file)
-    with open(model_fname, 'rb') as model_file:
+    with open(args['--model_fname'], 'rb') as model_file:
         best_model = pickle.load(model_file)
 
     # start test
@@ -217,13 +226,7 @@ if __name__ == '__main__':
                  numericalizer, compute_p_r_f1=True)
 
     print('=' * 89)
-    try:
-        test_ppl = math.exp(test_loss)
-    except OverflowError:
-        print("Test ppl too large to compute")
-        test_ppl = 0
-    print('End of training')
-    print('test loss {:5.2f} | test ppl {:8.2f}'.format(test_loss, test_ppl))
+    print('test loss {:5.2f}'.format(test_loss))
     print('mention precision {:5.2f} | mention recall {:5.2f} |\
  mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
     print('document precision {:5.2f} | document recall {:5.2f} |\

@@ -21,30 +21,16 @@ class Numericalizer:
         return numericalized
 
 
-def prod(numbers):
-    res = 1
-    for i in numbers:
-        res *= i
-    return res
+class FastTextVectorizer(Numericalizer):
+    def __init__(self, vocab):
+        pass
 
 
-# def integerify(s):
-#     """ maps a string to a unique integer.
-#         Thanks to user poke on StackOverflow
-#     """
-#     return int.from_bytes(s.encode(), 'big')
-
-
-# def stringify(n):
-#     """ Reverses integerify.
-#         Thanks to user poke on StackOverflow
-#     """
-#     return n.to_bytes(math.ceil(n.bit_length() / 8), 'big').decode()
-
-
-# def numericalize_text(text):
-#     """ maps a list of words to a unique list of integers"""
-#     return [integerify(word) for word in text]
+# def prod(numbers):
+#     res = 1
+#     for i in numbers:
+#         res *= i
+#     return res
 
 
 def get_text_window(text, window_size, start_index, end_index):
@@ -173,3 +159,19 @@ def select_optimizer(option, model, lr):
     else:
         raise TypeError("optimizer name not recognized")
     return optimizer, scheduler
+
+    def parse_args(argv, args):
+        """ parses a list of arguments into a dictionary
+            more easily interpretable in code.
+            Args:
+                argv (list<str>): a list of arguments
+                args (dct<str: any>): a dict
+        """
+        i = 1
+        while i < len(argv) - 1:
+            if argv[i] in args.keys():
+                if isinstance(args[argv[i]], bool):
+                    args[argv[i]] = not args[argv[i]]
+                else:
+                    args[argv[i]] = argv[i + 1]
+            i += 1

@@ -11,6 +11,7 @@ from constants import device
 from util import Numericalizer
 from util import get_start_end_indices
 from util import get_text_window
+from util import parse_args
 from util import select_optimizer
 
 from evaluate import evaluate
@@ -92,19 +93,9 @@ if __name__ == '__main__':
     args['--optim'] = "SGD"
     args['--lr'] = 5
 
-    i = 1
-    while i < len(argv) - 1:
-        if argv[i] in args.keys():
-            args[argv[i]] = argv[i + 1]
-        i += 1
+    parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
     args['--lr'] = float(args['--lr'])
-    # try:
-    #     _, train_fname, val_fname, model_fname = argv
-    # except ValueError:
-    #     print("Failed unpacking training corpus filename, "
-    #           "validation corpus filename, and model destination "
-    #           "filename from arguments. Proceeding with default values.")
 
     try:
         with open(args['--train_fname'], 'rb') as train_file:
