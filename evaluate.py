@@ -1,11 +1,11 @@
 import constants as cst
-import math
 import pickle
 import torch
 
 from sys import argv
 from util import get_start_end_indices
 from util import get_text_window
+from util import parse_args
 
 
 def cuid_list_to_ranges(cuids):
@@ -206,8 +206,14 @@ if __name__ == '__main__':
     args['--model_fname'] = cst.model_fname
     args['--umls_fname'] = cst.umls_fname
     args['--numer_fname'] = cst.numer_fname
+    args['--predictions_fname'] = cst.wd + "predictions.out"
+    args['--targets_fname'] = cst.wd + "targets.out"
     args['--write_pred'] = False
     args['--skip_eval'] = False
+    args['--window_size'] = 20
+
+    parse_args(argv, args)
+    args['--window_size'] = int(args['--window_size'])
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
         umls_concepts = pickle.load(umls_con_file)
@@ -218,17 +224,39 @@ if __name__ == '__main__':
     with open(args['--model_fname'], 'rb') as model_file:
         best_model = pickle.load(model_file)
 
-    # start test
-    (test_loss,
-     (mention_precision, mention_recall, mention_f1),
-     (doc_precision, doc_recall, doc_f1)) =\
-        evaluate(best_model, test_corpus, umls_concepts,
-                 numericalizer, compute_p_r_f1=True)
+    if args['--write_pred']:
+        best_model.eval()  # Turn on the evaluation mode
+        with torch.no_grad():
+            for document in test_corpus.documents():
+                document_tagged, document_targets, _ =\
+                    predict(best_model, document,
+                            window_size=args['--window_size'])
+                document_tagged = cuid_list_to_ranges(document_tagged)
+                document_targets = cuid_list_to_ranges(document_targets)
+                # inserting the PMID at the beginning of each range
+                for i in document_tagged:
+                    i.insert(0, document.pmid)
+                for i in document_targets:
+                    i.insert(0, document.pmid)
+                with open(args['--predictions_fname'], 'a') as f:
+                    print(document_tagged, file=f)
+                with open(args['--targets_fname'], 'a') as f:
+                    print(document_targets, file=f)
 
-    print('=' * 89)
-    print('test loss {:5.2f}'.format(test_loss))
-    print('mention precision {:5.2f} | mention recall {:5.2f} |\
- mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
-    print('document precision {:5.2f} | document recall {:5.2f} |\
- document f1 {:8.2f}'.format(doc_precision, doc_recall, doc_f1))
-    print('=' * 89)
+    if not args['--skip_eval']:
+
+        # start test
+        (test_loss,
+         (mention_precision, mention_recall, mention_f1),
+         (doc_precision, doc_recall, doc_f1)) =\
+            evaluate(best_model, test_corpus, umls_concepts,
+                     numericalizer, window_size=args['--window_size'],
+                     compute_p_r_f1=True)
+
+        print('=' * 89)
+        print('test loss {:5.2f}'.format(test_loss))
+        print('mention precision {:5.2f} | mention recall {:5.2f} |\
+     mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
+        print('document precision {:5.2f} | document recall {:5.2f} |\
+     document f1 {:8.2f}'.format(doc_precision, doc_recall, doc_f1))
+        print('=' * 89)
