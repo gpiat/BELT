@@ -160,18 +160,19 @@ def select_optimizer(option, model, lr):
         raise TypeError("optimizer name not recognized")
     return optimizer, scheduler
 
-    def parse_args(argv, args):
-        """ parses a list of arguments into a dictionary
-            more easily interpretable in code.
-            Args:
-                argv (list<str>): a list of arguments
-                args (dct<str: any>): a dict
-        """
-        i = 1
-        while i < len(argv) - 1:
-            if argv[i] in args.keys():
-                if isinstance(args[argv[i]], bool):
-                    args[argv[i]] = not args[argv[i]]
-                else:
-                    args[argv[i]] = argv[i + 1]
-            i += 1
+
+def parse_args(argv, args):
+    """ parses a list of arguments into a dictionary
+        more easily interpretable in code.
+        Args:
+            argv (list<str>): a list of arguments
+            args (dct<str: any>): a dict
+    """
+    i = 1
+    while i < len(argv) - 1:
+        if argv[i] in args.keys():
+            if isinstance(args[argv[i]], bool):
+                args[argv[i]] = not args[argv[i]]
+            else:
+                args[argv[i]] = argv[i + 1]
+        i += 1
