@@ -231,13 +231,15 @@ if __name__ == '__main__':
                 document_tagged, document_targets, _ =\
                     predict(best_model, document,
                             window_size=args['--window_size'])
-                document_tagged = cuid_list_to_ranges(document_tagged)
-                document_targets = cuid_list_to_ranges(document_targets)
+                # document_tagged = cuid_list_to_ranges(document_tagged)
+                # document_targets = cuid_list_to_ranges(document_targets)
                 # inserting the PMID at the beginning of each range
-                for i in document_tagged:
-                    i.insert(0, document.pmid)
-                for i in document_targets:
-                    i.insert(0, document.pmid)
+                # for i in document_tagged:
+                #     i.insert(0, document.pmid)
+                # for i in document_targets:
+                #     i.insert(0, document.pmid)
+                document_tagged.insert(0, document.pmid)
+                document_targets.insert(0, document.pmid)
                 with open(args['--predictions_fname'], 'a') as f:
                     print(document_tagged, file=f)
                 with open(args['--targets_fname'], 'a') as f:
