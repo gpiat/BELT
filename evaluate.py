@@ -144,11 +144,8 @@ def predict(model, document, window_size):
     document_tagged = []
     document_targets = []
     text = numericalizer.numericalize_text(document.text)
-    print("document text:\t", document.text)
-    print("text length:\t", len(text))
     for i in range(len(text)):
         s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
-        print("start:{}\tend:{}".format(s_idx, e_idx))
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
@@ -162,7 +159,7 @@ def predict(model, document, window_size):
 
         loss_increment = (len(data) *
                           cst.criterion(output, target).item())
-        return document_tagged, document_targets, loss_increment
+    return document_tagged, document_targets, loss_increment
 
 
 def evaluate(model, corpus, umls_concepts, numericalizer,
@@ -234,15 +231,13 @@ if __name__ == '__main__':
                 document_tagged, document_targets, _ =\
                     predict(best_model, document,
                             window_size=args['--window_size'])
-                # document_tagged = cuid_list_to_ranges(document_tagged)
-                # document_targets = cuid_list_to_ranges(document_targets)
+                document_tagged = cuid_list_to_ranges(document_tagged)
+                document_targets = cuid_list_to_ranges(document_targets)
                 # inserting the PMID at the beginning of each range
-                # for i in document_tagged:
-                #     i.insert(0, document.pmid)
-                # for i in document_targets:
-                #     i.insert(0, document.pmid)
-                document_tagged.insert(0, document.pmid)
-                document_targets.insert(0, document.pmid)
+                for i in document_tagged:
+                    i.insert(0, document.pmid)
+                for i in document_targets:
+                    i.insert(0, document.pmid)
                 with open(args['--predictions_fname'], 'a') as f:
                     print(document_tagged, file=f)
                 with open(args['--targets_fname'], 'a') as f:
