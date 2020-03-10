@@ -144,8 +144,11 @@ def predict(model, document, window_size):
     document_tagged = []
     document_targets = []
     text = numericalizer.numericalize_text(document.text)
+    print("document text:\t", document.text)
+    print("text length:\t", len(text))
     for i in range(len(text)):
         s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
+        print("start:{}\tend:{}".format(s_idx, e_idx))
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
