@@ -228,7 +228,7 @@ if __name__ == '__main__':
         umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx.items()}
         best_model.eval()  # Turn on the evaluation mode
         with torch.no_grad():
-            print("number of documents: ", len(test_corpus.documents()))
+            print("number of documents: ", len(test_corpus.n_documents))
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
                     predict(best_model, document,
