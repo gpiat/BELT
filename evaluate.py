@@ -225,7 +225,7 @@ if __name__ == '__main__':
         best_model = pickle.load(model_file)
 
     if args['--write_pred']:
-        umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx}
+        umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx.items()}
         best_model.eval()  # Turn on the evaluation mode
         with torch.no_grad():
             print("number of documents: ", len(test_corpus.documents()))
