@@ -140,7 +140,7 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, window_size):
+def predict(model, document, window_size, umls_cuid_to_idx):
     document_tagged = []
     document_targets = []
     text = numericalizer.numericalize_text(document.text)
@@ -149,7 +149,7 @@ def predict(model, document, window_size):
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
-            [umls_concepts[document.get_cuid(i)]]
+            [umls_cuid_to_idx[document.get_cuid(i)]]
         ).long().to(cst.device)
         document_targets.append(int(target))
 
@@ -162,15 +162,15 @@ def predict(model, document, window_size):
     return document_tagged, document_targets, loss_increment
 
 
-def evaluate(model, corpus, umls_concepts, numericalizer,
+def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
              window_size=20, compute_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
             - (MedMentionsCorpus) corpus: the evaluation corpus
-            - (dict) umls_concepts: a dict mapping UMLS CUIDs to
+            - (dict) umls_cuid_to_idx: a dict mapping UMLS CUIDs to
                 indices. Assumes all the CUIDs used in the corpus
-                are indexed in umls_concepts.
+                are indexed in umls_cuid_to_idx.
             - (util.Numericalizer) numericalizer: converts words to
                 numbers for the purpose of input to the model. This
                 should be consistent with the numericalizer that was
@@ -186,7 +186,7 @@ def evaluate(model, corpus, umls_concepts, numericalizer,
     with torch.no_grad():
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
-                predict(model, document, window_size)
+                predict(model, document, window_size, umls_cuid_to_idx)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     args['--window_size'] = int(args['--window_size'])
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
-        umls_concepts = pickle.load(umls_con_file)
+        umls_cuid_to_idx = pickle.load(umls_con_file)
     with open(args['--numer_fname'], 'rb') as numericalizer_file:
         numericalizer = pickle.load(numericalizer_file)
     with open(args['--test_fname'], 'rb') as test_file:
@@ -225,23 +225,32 @@ if __name__ == '__main__':
         best_model = pickle.load(model_file)
 
     if args['--write_pred']:
+        umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx}
         best_model.eval()  # Turn on the evaluation mode
         with torch.no_grad():
+            print("number of documents: ", len(test_corpus.documents()))
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
                     predict(best_model, document,
-                            window_size=args['--window_size'])
+                            args['--window_size'], umls_cuid_to_idx)
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
-                # inserting the PMID at the beginning of each range
                 for i in document_tagged:
+                    # inserting the PMID at the beginning of each range
                     i.insert(0, document.pmid)
+                    # and replacing the index of the UMLS concept with its CUID
+                    i[-1] = umls_idx_to_cuid[i[-1]]
                 for i in document_targets:
                     i.insert(0, document.pmid)
+                    i[-1] = umls_idx_to_cuid[i[-1]]
                 with open(args['--predictions_fname'], 'a') as f:
-                    print(document_tagged, file=f)
+                    for tag in document_tagged:
+                        print(tag, file=f)
+                    print('', file=f)
                 with open(args['--targets_fname'], 'a') as f:
-                    print(document_targets, file=f)
+                    for target in document_targets:
+                        print(target, file=f)
+                    print('', file=f)
 
     if not args['--skip_eval']:
 
@@ -249,7 +258,7 @@ if __name__ == '__main__':
         (test_loss,
          (mention_precision, mention_recall, mention_f1),
          (doc_precision, doc_recall, doc_f1)) =\
-            evaluate(best_model, test_corpus, umls_concepts,
+            evaluate(best_model, test_corpus, umls_cuid_to_idx,
                      numericalizer, window_size=args['--window_size'],
                      compute_p_r_f1=True)
 
