@@ -108,7 +108,7 @@ class MedMentionsDocument:
                 word_idx (int): index of the word in self.text
         """
         # The idea here is to find the CUID of a word despite only having the
-        # CUID of spans of characters. We therefore find the CUID of the last
+        # CUID of spans of characters. We therefore find the CUID of a
         # character of the word. Since we have only the index of the word (and
         # not its characters), we have to apply a conversion by summing the
         # lengths of the words that come before it.
@@ -119,6 +119,12 @@ class MedMentionsDocument:
         # for some reason this selects the space after the word, so I'm
         # substracting 1 but I can't figure out why
         char_idx += word_idx - 1
+        # char_idx is the index of the last character. Because of the way
+        # strings are  split, this can point to a punctuation mark.
+        # we subtract half the word length to get a character approximately in
+        # the middle of the word.
+        char_idx -= len(self.text[word_idx]) >> 1  # bit-shift for division
+
         cuid = None
         for mention in self.umls_entities:
             if mention.start_idx <= char_idx < mention.stop_idx:
