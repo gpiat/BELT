@@ -140,7 +140,7 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, window_size, umls_cuid_to_idx):
+def predict(model, document, window_size, umls_cuid_to_idx, numericalizer):
     document_tagged = []
     document_targets = []
     text = numericalizer.numericalize_text(document.text)
@@ -157,8 +157,7 @@ def predict(model, document, window_size, umls_cuid_to_idx):
             [text[i]]).to(cst.device))
         document_tagged.append(int(torch.argmax(output)))
 
-        loss_increment = (len(data) *
-                          cst.criterion(output, target).item())
+        loss_increment = (len(data) * cst.criterion(output, target).item())
     return document_tagged, document_targets, loss_increment
 
 
@@ -186,7 +185,8 @@ def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
     with torch.no_grad():
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
-                predict(model, document, window_size, umls_cuid_to_idx)
+                predict(model, document, window_size,
+                        umls_cuid_to_idx, numericalizer)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
