@@ -23,6 +23,28 @@ def text_preprocess(text):
     return pmid, text
 
 
+def split_punctuation(text):
+    """ Args:
+            list<str>
+        Return:
+            list<str>
+        ex:
+        in:  ['hello,', 'how', 'do', 'you', 'do?']
+        out: ['hello', ',', 'how', 'do', 'you', 'do', '?']
+    """
+    new_text = []
+    for word in text:
+        new_word = ''
+        for char in word:
+            if char not in string.punctuation:
+                new_word += char
+            else:
+                new_text.append(new_word)
+                new_word = char
+        new_text.append(new_word)
+    return new_text
+
+
 def peek(file, n=1):
     """ Reads n lines ahead in a file without changing the file
         object's current position in the file
