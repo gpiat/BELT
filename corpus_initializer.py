@@ -110,6 +110,7 @@ if __name__ == '__main__':
         "--train_fname": cst.train_fname,
         "--val_fname": cst.val_fname,
         "--test_fname": cst.test_fname,
+        "--nopunct": False,
 
         # UMLS_concepts_init specific
         "--umls_fname": cst.umls_fname
