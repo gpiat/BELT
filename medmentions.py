@@ -95,7 +95,7 @@ class MedMentionsDocument:
     """
 
     def __init__(self, title, abstract, umls_mentions,
-                 character_level_split=False):
+                 split_by_char=False):
         # , no_punct=False):
         """ Args:
                 - (str) title: raw title line of text
@@ -108,7 +108,7 @@ class MedMentionsDocument:
                     will no longer align with the text.
         """
         self.pmid, self.title = text_preprocess(title)
-        self.character_level_split = character_level_split
+        self.split_by_char = split_by_char
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
@@ -125,7 +125,7 @@ class MedMentionsDocument:
         #     self.text = [*title_nopunct.split(), *abs_nopunct.split()]
         # else:
         #     self.text = [*self.title.split(), *self.abstract.split()]
-        if character_level_split:
+        if split_by_char:
             self.text = list(self.raw_text)
         else:
             self.text = self.raw_text.split()
@@ -146,7 +146,7 @@ class MedMentionsDocument:
         """
         cuid = None
 
-        if self.character_level_split:
+        if self.split_by_char:
             s_e_i_copy = self.start_end_indices.copy()
             s_e_i_copy.append(word_idx)
             s_e_i_copy.sort()
@@ -213,7 +213,7 @@ class MedMentionsCorpus:
     """
 
     def __init__(self, fnames, auto_looping=False,
-                 character_level_split=False):
+                 split_by_char=False):
         # , no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
@@ -229,7 +229,7 @@ class MedMentionsCorpus:
         self._currentfile = 0
         self._looping = auto_looping
         # self.no_punct = no_punct
-        self.character_level_split = character_level_split
+        self.split_by_char = split_by_char
         self.n_documents, self.cuids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
 
@@ -285,7 +285,7 @@ class MedMentionsCorpus:
 
                 yield MedMentionsDocument(title, abstract,
                                           umls_entities,
-                                          self.character_level_split)
+                                          self.split_by_char)
             f.close()
 
             self._currentfile += 1
