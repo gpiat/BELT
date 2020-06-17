@@ -97,6 +97,7 @@ if __name__ == '__main__':
     parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
     args['--lr'] = float(args['--lr'])
+    args['--window_size'] = int(args['--window_size'])
 
     try:
         with open(args['--train_fname'], 'rb') as train_file:
