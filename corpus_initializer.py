@@ -1,5 +1,6 @@
 import constants as cst
 import pickle
+from util import parse_args
 
 from sys import argv
 
@@ -120,10 +121,7 @@ if __name__ == '__main__':
         # UMLS_concepts_init specific
         "--umls_fname": cst.umls_fname
     }
-    for i in range(len(argv)):
-        arg = argv[i]
-        if arg in args.keys():
-            args[arg] = argv[i + 1]
+    parse_args(argv, args)
 
     no_valid_args = True
 
