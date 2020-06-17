@@ -92,6 +92,7 @@ if __name__ == '__main__':
     args['--writepath'] = cst.wd
     args['--optim'] = "SGD"
     args['--lr'] = 5
+    args['--window_size'] = 20
 
     parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
@@ -122,7 +123,8 @@ if __name__ == '__main__':
                                  n_umls_concepts=len(umls_concepts),
                                  embed_size=200, nhead=2, nhid=200,
                                  nlayers=2,  # batch_size=35,
-                                 phrase_len=20, dropout=0.2).to(device)
+                                 phrase_len=args['--window_size'],
+                                 dropout=0.2).to(device)
     else:
         with open(args['--writepath'] +
                   args['--model_fname'], 'rb') as model_file:
