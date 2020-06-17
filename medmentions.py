@@ -1,4 +1,5 @@
 import string
+import itertools
 
 
 def text_preprocess(text):
@@ -93,7 +94,9 @@ class MedMentionsDocument:
                 PubTator entity mention annotations.
     """
 
-    def __init__(self, title, abstract, umls_mentions, no_punct=False):
+    def __init__(self, title, abstract, umls_mentions,
+                 character_level_split=False):
+        # , no_punct=False):
         """ Args:
                 - (str) title: raw title line of text
                 - (str) abstract: raw abstract line of text
@@ -105,23 +108,35 @@ class MedMentionsDocument:
                     will no longer align with the text.
         """
         self.pmid, self.title = text_preprocess(title)
+        self.character_level_split = character_level_split
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
-        self.raw_text = self.title + self.abstract
+        self.raw_text = self.title + '\n' + self.abstract
 
-        self.no_punct = no_punct
-        if no_punct:
-            title_nopunct = self.title.translate(
-                str.maketrans('', '', string.punctuation))
-            abs_nopunct = self.abstract.translate(
-                str.maketrans('', '', string.punctuation))
-            # can't split raw_text because of missing
-            # space between title and abstract
-            self.text = [*title_nopunct.split(), *abs_nopunct.split()]
+        # self.no_punct = no_punct
+        # if no_punct:
+        #     title_nopunct = self.title.translate(
+        #         str.maketrans('', '', string.punctuation))
+        #     abs_nopunct = self.abstract.translate(
+        #         str.maketrans('', '', string.punctuation))
+        #     # can't split raw_text because of missing
+        #     # space between title and abstract
+        #     self.text = [*title_nopunct.split(), *abs_nopunct.split()]
+        # else:
+        #     self.text = [*self.title.split(), *self.abstract.split()]
+        if character_level_split:
+            self.text = list(self.raw_text)
         else:
-            self.text = [*self.title.split(), *self.abstract.split()]
+            self.text = self.raw_text.split()
+
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
+
+        # list of all start and end indices of all entities
+        # originally the stop index is exclusive, but we need it
+        # to be inclusive and vice-versa for the start index.
+        self.start_end_indices = list(itertools.chain(
+            [(e.start_idx, e.stop_idx - 1) for e in self.umls_entities]))
 
     def get_cuid(self, word_idx):
         """ Returns the CUID of a word given its index (returns
@@ -129,31 +144,54 @@ class MedMentionsDocument:
             Args:
                 word_idx (int): index of the word in self.text
         """
-        # The idea here is to find the CUID of a word despite only having the
-        # CUID of spans of characters. We therefore find the CUID of a
-        # character of the word. Since we have only the index of the word (and
-        # not its characters), we have to apply a conversion by summing the
-        # lengths of the words that come before it.
-        char_idx = sum([len(word) for word in self.text[:(word_idx + 1)]])
-        # can't forget to add the spaces
-        # one between each word = (word_idx + 1) - 1
-        # +1 because lists start at 0; -1 because one space between each word
-        # for some reason this selects the space after the word, so I'm
-        # substracting 1 but I can't figure out why
-        char_idx += word_idx - 1
-        # char_idx is the index of the last character. Because of the way
-        # strings are  split, this can point to a punctuation mark.
-        # we subtract half the word length to get a character approximately in
-        # the middle of the word.
-        char_idx -= len(self.text[word_idx]) >> 1  # bit-shift for division
-
         cuid = None
-        for mention in self.umls_entities:
-            if mention.start_idx <= char_idx < mention.stop_idx:
-                cuid = mention.concept_ID
-                break  # it may theoretically be possible that one word is part
-                # of several UMLS mentions but that case would be impractical
-                # to handle and likely wouldn't matter at scale.
+
+        if self.character_level_split:
+            s_e_i_copy = self.start_end_indices.copy()
+            s_e_i_copy.append(word_idx)
+            s_e_i_copy.sort()
+            # if the character is in a mention, its index will be between
+            # a start and a stop index. Since they alternate, all start
+            # indices are at even positions within the list, and all stop
+            # indices will be at odd positions. Therefore, the index of a
+            # character that is in a mention will be put at an odd position
+            # in the list. Conversely, a character that is not in a mention
+            # will be at an even position. Since index() returns the first
+            # occurence, if the character examined is equal to the start
+            # index, it will be found at an even position, therefore the
+            # start index of the mention has to be exclusive. The reverse
+            # is true for the stop index of the mention.
+            word_idx_idx = s_e_i_copy.index(word_idx)
+            is_in_mention = bool(word_idx_idx % 2)
+            if is_in_mention:
+                cuid = self.umls_entities[word_idx_idx / 2].concept_ID
+        else:
+            # The idea here is to find the CUID of a word despite only
+            # having the CUID of spans of characters. We therefore find
+            # the CUID of a character of the word. Since we have only the
+            # index of the word (and not its characters), we have to apply
+            # a conversion by summing the lengths of the words that come
+            # before it.
+            char_idx = sum([len(word) for word in self.text[:(word_idx + 1)]])
+            # can't forget to add the spaces
+            # one between each word = (word_idx + 1) - 1
+            # +1 because lists start at 0; -1 because one space between
+            # each word for some reason this selects the space after the word,
+            # so I'm substracting 1 but I can't figure out why
+            char_idx += word_idx - 1
+            # char_idx is the index of the last character. Because of the way
+            # strings are  split, this can point to a punctuation mark.
+            # we subtract half the word length to get a character approximately
+            # in the middle of the word.
+            char_idx -= len(self.text[word_idx]) >> 1  # bit-shift for division
+
+            for mention in self.umls_entities:
+                if mention.start_idx <= char_idx < mention.stop_idx:
+                    cuid = mention.concept_ID
+                    break  # it may theoretically be possible that one word is
+                    # part of several UMLS mentions but that case would be
+                    # impractical to handle and likely wouldn't matter at
+                    # scale.
         return cuid
 
     def get_vocab(self):
@@ -174,20 +212,24 @@ class MedMentionsCorpus:
         documents with the documents() generator function.
     """
 
-    def __init__(self, fnames, auto_looping=False, no_punct=False):
+    def __init__(self, fnames, auto_looping=False,
+                 character_level_split=False):
+        # , no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
                 - auto_looping (bool): whether retrieving documents should
                     automatically loop or not
-                - no_punct (bool): Defaults to False. If True, removes
-                    punctuation from each document's `text` attribute.
-                    This will cause training to fail as UMLS mentions
-                    will no longer align with the text.
         """
+        # - no_punct (bool): Defaults to False. If True, removes
+        #     punctuation from each document's `text` attribute.
+        #     This will cause training to fail as UMLS mentions
+        #     will no longer align with the text.
+
         self._filenames = fnames
         self._currentfile = 0
         self._looping = auto_looping
-        self.no_punct = no_punct
+        # self.no_punct = no_punct
+        self.character_level_split = character_level_split
         self.n_documents, self.cuids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
 
@@ -242,7 +284,8 @@ class MedMentionsCorpus:
                     next_line = f.readline()
 
                 yield MedMentionsDocument(title, abstract,
-                                          umls_entities, self.no_punct)
+                                          umls_entities,
+                                          self.character_level_split)
             f.close()
 
             self._currentfile += 1
