@@ -20,8 +20,9 @@ from sys import argv
 
 
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
-          window_size=20, batch_size=35, epoch=0, log_interval=200):
+          batch_size=35, epoch=0, log_interval=200):
     model.train()  # Turn on the train mode
+    window_size = model.phrase_len
     total_loss = 0.
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):

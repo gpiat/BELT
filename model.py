@@ -45,6 +45,7 @@ class TransformerModel(nn.Module):
         """
         super(TransformerModel, self).__init__()
         self.model_type = 'Transformer'
+        self.phrase_len = phrase_len
         # self.src_mask = None
         self.encoder = nn.Embedding(ntoken, embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
