@@ -87,6 +87,7 @@ class TransformerModel(nn.Module):
         src = self.pos_encoder(src)
         # print("3: ", src.shape)
 
+        src_l = src.tolist()
         target_word_embeddings = torch.Tensor([src_l[i][target_word_indices[i]]
                                                for i in range(len(src_l))]
                                               ).to(device)
