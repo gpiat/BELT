@@ -30,7 +30,8 @@ def _UMLS_concepts_initializer(corpus, dct):
 
 def UMLS_concepts_init(fnames,
                        corpora=None, dflt_cat_thresh=0):
-    """ Pickles a dictionary mapping CUIDs found in a list of corpora to indices.
+    """ Pickles a dictionary mapping CUIDs found ina list of corpora to
+        indices.
         Args:
             - (str) outfile: path of the file to write the pickle to.
                 Defaults to the file name given in constants.py.
@@ -81,9 +82,12 @@ def pickle_corpora(fnames):
         expensive) when running many experiments on the same corpus.
     """
     train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']],
-                                     auto_looping=True)
-    val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']])
-    test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']])
+                                     auto_looping=True,
+                                     split_by_char=fnames['--split_by_char'])
+    val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']],
+                                   split_by_char=fnames['--split_by_char'])
+    test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']],
+                                    split_by_char=fnames['--split_by_char'])
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
@@ -111,6 +115,7 @@ if __name__ == '__main__':
         "--val_fname": cst.val_fname,
         "--test_fname": cst.test_fname,
         "--nopunct": False,
+        "--split_by_char": False,
 
         # UMLS_concepts_init specific
         "--umls_fname": cst.umls_fname
