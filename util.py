@@ -172,7 +172,15 @@ def parse_args(argv, args):
     while i < len(argv) - 1:
         if argv[i] in args.keys():
             if isinstance(args[argv[i]], bool):
+                # this is for cases where the user can add a "run mode"
+                # argument such as --debug which changes the default
+                # behavior. In this case, args['--debug'] would be set
+                # to False by default, but calling `script --debug`
+                # would then set args['--debug'] to True.
                 args[argv[i]] = not args[argv[i]]
             else:
+                # non boolean arguments of the form --window_size
+                # are necessarily followed by a value.
+                # `script --window_size 25` => args['--window_size']: 25
                 args[argv[i]] = argv[i + 1]
         i += 1

@@ -128,8 +128,8 @@ if __name__ == '__main__':
                                  phrase_len=args['--window_size'],
                                  dropout=0.2).to(device)
     else:
-        with open(args['--writepath'] +
-                  args['--model_fname'], 'rb') as model_file:
+        with open(args['--writepath'] + args['--model_fname'],
+                  'rb') as model_file:
             model = pickle.load(model_file)
 
     print("running on: ", device)

@@ -144,6 +144,7 @@ class MedMentionsDocument:
             Args:
                 word_idx (int): index of the word in self.text
         """
+
         cuid = None
 
         if self.split_by_char:
@@ -183,7 +184,7 @@ class MedMentionsDocument:
             # strings are  split, this can point to a punctuation mark.
             # we subtract half the word length to get a character approximately
             # in the middle of the word.
-            char_idx -= len(self.text[word_idx]) >> 1  # bit-shift for division
+            char_idx -= len(self.text[word_idx]) / 2
 
             for mention in self.umls_entities:
                 if mention.start_idx <= char_idx < mention.stop_idx:
