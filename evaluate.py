@@ -80,8 +80,8 @@ def get_mention_prec_rec_f1(predictions, targets):
     #         fp += 1
     #         fn += 1
     #     else:
-    #         err_msg = ("No condition could determine whether the case is of" +
-    #                    " a True Positive / True Negative / False Positive /" +
+    #         err_msg = ("No condition could determine whether the case is of"
+    #                    " a True Positive / True Negative / False Positive /"
     #                    " False Negative. Prediction: " + str(prediction) +
     #                    " Target: " + str(target))
     #         raise ValueError(err_msg)
@@ -140,7 +140,8 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, window_size, umls_cuid_to_idx, numericalizer):
+def predict(model, document, umls_cuid_to_idx, numericalizer):
+    window_size = model.phrase_len
     document_tagged = []
     document_targets = []
     text = numericalizer.numericalize_text(document.text)
@@ -162,7 +163,7 @@ def predict(model, document, window_size, umls_cuid_to_idx, numericalizer):
 
 
 def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
-             window_size=20, compute_p_r_f1=False):
+             compute_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
@@ -185,8 +186,7 @@ def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
     with torch.no_grad():
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
-                predict(model, document, window_size,
-                        umls_cuid_to_idx, numericalizer)
+                predict(model, document, umls_cuid_to_idx, numericalizer)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
@@ -210,10 +210,10 @@ if __name__ == '__main__':
     args['--targets_fname'] = cst.wd + "targets.out"
     args['--write_pred'] = False
     args['--skip_eval'] = False
-    args['--window_size'] = 20
+    # args['--window_size'] = 20
 
     parse_args(argv, args)
-    args['--window_size'] = int(args['--window_size'])
+    # args['--window_size'] = int(args['--window_size'])
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
         umls_cuid_to_idx = pickle.load(umls_con_file)
@@ -231,8 +231,7 @@ if __name__ == '__main__':
             print("number of documents: ", test_corpus.n_documents)
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
-                    predict(best_model, document,
-                            args['--window_size'], umls_cuid_to_idx)
+                    predict(best_model, document, umls_cuid_to_idx)
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
@@ -259,8 +258,7 @@ if __name__ == '__main__':
          (mention_precision, mention_recall, mention_f1),
          (doc_precision, doc_recall, doc_f1)) =\
             evaluate(best_model, test_corpus, umls_cuid_to_idx,
-                     numericalizer, window_size=args['--window_size'],
-                     compute_p_r_f1=True)
+                     numericalizer, compute_p_r_f1=True)
 
         print('=' * 89)
         print('test loss {:5.2f}'.format(test_loss))
