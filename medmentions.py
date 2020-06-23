@@ -148,7 +148,7 @@ class MedMentionsDocument:
         cuid = None
 
         if self.split_by_char:
-            s_e_i_copy = self.start_end_indices.copy()
+            s_e_i_copy = list(itertools.chain(self.start_end_indices.copy()))
             s_e_i_copy.append(word_idx)
             s_e_i_copy.sort()
             # if the character is in a mention, its index will be between
@@ -165,7 +165,7 @@ class MedMentionsDocument:
             word_idx_idx = s_e_i_copy.index(word_idx)
             is_in_mention = bool(word_idx_idx % 2)
             if is_in_mention:
-                cuid = self.umls_entities[word_idx_idx / 2].concept_ID
+                cuid = self.umls_entities[int(word_idx_idx / 2)].concept_ID
         else:
             # The idea here is to find the CUID of a word despite only
             # having the CUID of spans of characters. We therefore find
