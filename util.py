@@ -169,7 +169,7 @@ def parse_args(argv, args):
             args (dct<str: any>): a dict
     """
     i = 1
-    while i < len(argv) - 1:
+    while i < len(argv):
         if argv[i] in args.keys():
             if isinstance(args[argv[i]], bool):
                 # this is for cases where the user can add a "run mode"
@@ -182,5 +182,8 @@ def parse_args(argv, args):
                 # non boolean arguments of the form --window_size
                 # are necessarily followed by a value.
                 # `script --window_size 25` => args['--window_size']: 25
-                args[argv[i]] = argv[i + 1]
+                try:
+                    args[argv[i]] = argv[i + 1]
+                except IndexError:
+                    print("Error: no value specified for ", argv[i])
         i += 1
