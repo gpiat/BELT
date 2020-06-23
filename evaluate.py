@@ -231,7 +231,8 @@ if __name__ == '__main__':
             print("number of documents: ", test_corpus.n_documents)
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
-                    predict(best_model, document, umls_cuid_to_idx)
+                    predict(best_model, document,
+                            umls_cuid_to_idx, numericalizer)
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
