@@ -145,4 +145,6 @@ if __name__ == '__main__':
               "To pickle the train, test and validation corpora "
               "for use in the main script, use option --pickle.\n"
               "Remember to appropriately set your file paths in "
-              "constants.py.\n")
+              "constants.py.\n"
+              "available options:\n",
+              '\n'.join(list(args.keys())))
