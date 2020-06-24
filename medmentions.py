@@ -148,7 +148,7 @@ class MedMentionsDocument:
         cuid = None
 
         if self.split_by_char:
-            s_e_i_copy = list(itertools.chain(self.start_end_indices.copy()))
+            s_e_i_copy = list(itertools.chain(*self.start_end_indices.copy()))
             s_e_i_copy.append(word_idx)
             s_e_i_copy.sort()
             # if the character is in a mention, its index will be between
