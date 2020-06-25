@@ -13,20 +13,19 @@ def cuid_list_to_ranges(cuids):
             cuids (list<int>): list of CUIDs, likely with repetitions
         Returns:
             ranges (list<[int, int, int]>): list of ranges such that each
-                range is a list of the form <begin, end, CUID>.
+                range is a list of the form [begin, end + 1, CUID].
         Example:
-            In:     0 0 0 0 4 4 4 4 4 0 1 1 1
-                    ^     ^ ^       ^ ^ ^   ^
-                    |     |beg     end| |   |
-                   beg   end          |beg end
-                                   beg+end
-            Out: [(0, 3, 0), (4, 8, 4), (9, 9, 0), (10, 12, 1)]
+            In:     0, 0, 0, 0, 4, 4, 4, 4, 4, 0, 1, 1, 1
+                    ^        ^  ^           ^  ^  ^     ^
+                    |        | beg         end |  |     |
+                   beg      end                | beg   end
+                                            beg+end
+            Out: [[0, 4, 0], [4, 9, 4], [9, 10, 0], [10, 12, 1]]
     """
     ranges = [[0, 0, cuids[0]]]
     for i in range(1, len(cuids)):
-        if cuids[i] == cuids[i - 1]:
-            ranges[-1][1] = i
-        else:
+        ranges[-1][1] = i
+        if cuids[i] != cuids[i - 1]:
             ranges.append([i, i, cuids[i]])
     return ranges
 

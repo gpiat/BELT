@@ -53,7 +53,7 @@ def peek(file, n=1):
             - file: a text file
             - n (int): how many lines aheahd should be read, defaults to 1
         Return:
-            - line: line read
+            - line: last line read
     """
     pos = file.tell()
     lines = [file.readline() for i in range(n)]
@@ -136,7 +136,7 @@ class MedMentionsDocument:
         # originally the stop index is exclusive, but we need it
         # to be inclusive and vice-versa for the start index.
         self.start_end_indices = list(itertools.chain(
-            [(e.start_idx, e.stop_idx - 1) for e in self.umls_entities]))
+            [(e.start_idx - 1, e.stop_idx - 1) for e in self.umls_entities]))
 
     def get_cuid(self, word_idx):
         """ Returns the CUID of a word given its index (returns
