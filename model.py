@@ -53,7 +53,7 @@ class TransformerModel(nn.Module):
                                                  nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         self.decoder = nn.Linear(embed_size, n_umls_concepts + 1)
-        self.decoder2 = nn.Linear(phrase_len + 1, 1)
+        # self.decoder2 = nn.Linear(phrase_len + 1, 1)
 
         self.embed_size = embed_size
         self.init_weights()
@@ -67,37 +67,46 @@ class TransformerModel(nn.Module):
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder2.bias.data.zero_()
-        self.decoder2.weight.data.uniform_(-initrange, initrange)
+        # self.decoder2.bias.data.zero_()
+        # self.decoder2.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src, target_words):
-        # if self.src_mask is None or self.src_mask.size(0) != len(src):
-        #     device = src.device
-        #     mask = self._generate_square_subsequent_mask(len(src)).to(device)
-        #     self.src_mask = mask
+    def forward(self, src):  # , target_words):
+        ## if self.src_mask is None or self.src_mask.size(0) != len(src):
+        ##     device = src.device
+        ##     mask = self._generate_square_subsequent_mask(len(src)).to(device)
+        ##     self.src_mask = mask
 
-        src_l = src.tolist()
-        target_words_list = target_words.tolist()
-        target_word_indices = [src_l[i].index(
-            target_words_list[i]) for i in range(len(src_l))]
+        ## src_l = src.tolist()
+        ## target_words_list = target_words.tolist()
+        # target_word_indices = [src_l[i].index(
+        # target_words_list[i]) for i in range(len(src_l))]
 
-        # print("1: ", src.shape)
+        # src shape: torch.Size([minibatch, window_size])
         src = self.encoder(src) * math.sqrt(self.embed_size)
-        # print("2: ", src.shape)
+        # src shape: torch.Size([minibatch, window_size, embed_size])
         src = self.pos_encoder(src)
-        # print("3: ", src.shape)
+        # src shape: torch.Size([minibatch, window_size, embed_size])
 
-        src_l = src.tolist()
-        target_word_embeddings = torch.Tensor([src_l[i][target_word_indices[i]]
-                                               for i in range(len(src_l))]
-                                              ).to(device)
-        target_word_embeddings = target_word_embeddings.unsqueeze(1)
+        ## src_l = src.tolist()
+        ## target_word_embeddings = torch.Tensor([src_l[i][target_word_indices[i]]
+        ## for i in range(len(src_l))]).to(device)
+        ## target_word_embeddings = target_word_embeddings.unsqueeze(1)
 
         output = self.transformer_encoder(src)  # , self.src_mask)
-        # print("4: ", output.shape)
-        output = self.decoder(
-            torch.cat((output, target_word_embeddings), dim=1))
-        # print("5: ", output.shape)
-        output = self.decoder2(output.transpose(1, 2)).squeeze(2)
-        # print("6: ", output.shape)
+        # output shape: torch.Size([minibatch, window_size, embed_size])
+
+        output = self.decoder(output)
+        ## torch.cat((output, target_word_embeddings), dim=1))
+        # output shape: torch.Size([minibatch, window_size + 1, C])
+        # with C the number of classesfor the classification problem
+
+        ## output = self.decoder2(output.transpose(1, 2)).squeeze(2)
+        # output shape: torch.Size([minibatch, C])
+
+        # To perform Softmax properly, torch.nn.CrossEntropyLoss expects
+        # a tensor of shape [minibatch, C, window_size], yet we have
+        # [minibatch, window_size, C]. Therefore we must permute dimensions
+        # 1 and 2.
+        output = output.permute(0, 2, 1)
+        # output shape: [minibatch, C, window_size]
         return output
