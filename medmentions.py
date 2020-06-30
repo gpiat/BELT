@@ -195,6 +195,10 @@ class MedMentionsDocument:
                     # scale.
         return cuid
 
+    def get_cuids(self, first_word_idx, last_word_idx):
+        return [self.get_cuid(word_idx) for word_idx in range(first_word_idx,
+                                                              last_word_idx)]
+
     def get_vocab(self):
         return list(set(self.text))
 
