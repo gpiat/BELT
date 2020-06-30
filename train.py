@@ -57,7 +57,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         # prediction.
         for i in range(0, len(text), round(((1 - overlap) / 2) * window_size)):
             start_index = min(i, len(text) - window_size)
-            end_index = min(len(text), window_size + i) - 1
+            end_index = min(len(text), window_size + i)
             ## start_index, end_index = i, window_size + i
             # TODO: prevent processing the same text segment multiple times when
             # getting to the end of the text
