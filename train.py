@@ -59,7 +59,10 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             start_index = min(i, len(text) - window_size)
             end_index = min(len(text), window_size + i) - 1
             ## start_index, end_index = i, window_size + i
+            # TODO: prevent processing the same text segment multiple times when
+            # getting to the end of the text
             ## start_index, end_index = get_start_end_indices(i, len(text), window_size)
+
             data[i % batch_size] = get_text_window(
                 text, window_size, start_index, end_index)
 
