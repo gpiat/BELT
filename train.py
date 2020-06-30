@@ -20,7 +20,7 @@ from sys import argv
 
 
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
-          batch_size=35, overlap=0.8, epoch=0, log_interval=200):
+          batch_size, overlap=0.8, epoch=0, log_interval=200):
     """ Args:
             model
             corpus
@@ -115,11 +115,13 @@ if __name__ == '__main__':
     args['--optim'] = "SGD"
     args['--lr'] = 5
     args['--window_size'] = 20
+    args['--batch_size'] = 35
 
     parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
     args['--lr'] = float(args['--lr'])
     args['--window_size'] = int(args['--window_size'])
+    args['--batch_size'] = int(args['--batch_size'])
 
     try:
         with open(args['--train_fname'], 'rb') as train_file:
@@ -178,7 +180,8 @@ if __name__ == '__main__':
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
         train(model, train_corpus, umls_concepts,
-              optimizer, scheduler, numericalizer, epoch=epoch)
+              optimizer, scheduler, numericalizer,
+              batch_size=args["--batch_size"], epoch=epoch)
 
         (train_loss,
          train_mention_p_r_f1,
