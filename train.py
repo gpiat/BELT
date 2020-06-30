@@ -55,7 +55,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         # The idea is that the first quarter and last quarter of the predicted
         # labels likely don't have enough context to give an accurate
         # prediction.
-        for i in range(0, len(text), int((1 - overlap) / 2) * window_size):
+        for i in range(0, len(text), round(((1 - overlap) / 2) * window_size)):
             start_index, end_index = i, window_size + i
             ## start_index, end_index = get_start_end_indices(i, len(text), window_size)
             data[i % batch_size] = get_text_window(
