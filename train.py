@@ -20,7 +20,22 @@ from sys import argv
 
 
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
-          batch_size=35, epoch=0, log_interval=200):
+          batch_size=35, overlap=0.8, epoch=0, log_interval=200):
+    """ Args:
+            model
+            corpus
+            umls_concepts
+            optimizer
+            scheduler
+            numericalizer: Numericalizer object for numericalizing text
+            batch_size (int): number of batches of text to handle
+                simultaneously
+            overlap (float in [0,1]): proportion of the windows that should
+                overlap
+            epoch (int): for logging purposes, allows a custom start to the
+                epoch counter when resuming training after an interruption
+            log_interval (int): number of iterations between logging events
+    """
     model.train()  # Turn on the train mode
     window_size = model.phrase_len
     total_loss = 0.
@@ -29,21 +44,27 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         # print(doc_idx, document.text[1:10])
         text = numericalizer.numericalize_text(document.text)
         targets = torch.zeros(batch_size,
-                              # len(umls_concepts) + 1,
+                              window_size,
                               dtype=torch.long).to(device)
         data = torch.zeros(batch_size,
                            window_size,
                            dtype=torch.long).to(device)
-        target_words = torch.zeros(batch_size, dtype=torch.long).to(device)
-        for i in range(len(text)):
-            start_index, end_index =\
-                get_start_end_indices(i, len(text), window_size)
+        ## target_words = torch.zeros(batch_size, dtype=torch.long).to(device)
+
+        # Here we're going over the text with a sliding window with overlap.
+        # The idea is that the first quarter and last quarter of the predicted
+        # labels likely don't have enough context to give an accurate
+        # prediction.
+        for i in range(0, len(text), int((1 - overlap) / 2) * window_size):
+            start_index, end_index = i, window_size + i
+            ## start_index, end_index = get_start_end_indices(i, len(text), window_size)
             data[i % batch_size] = get_text_window(
                 text, window_size, start_index, end_index)
 
-            target = umls_concepts[document.get_cuid(i)]
-            targets[i % batch_size] = target
-            target_words[i % batch_size] = text[i]
+            target = [umls_concepts[cuid]
+                      for cuid in document.get_cuids(start_index, end_index)]
+            targets[i % batch_size] = torch.Tensor(target).to(device)
+            ## target_words[i % batch_size] = text[i]
 
             # the fact that we do this processing only every batch_size
             # steps means that we don't do it if the remainder of the
@@ -51,7 +72,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             # and the standard way of handling this case.
             if i % batch_size == 0:
                 optimizer.zero_grad()
-                output = model(data, target_words)
+                output = model(data)  # , target_words)
                 loss = criterion(output, targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
@@ -59,7 +80,7 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
 
                 total_loss += loss.item()
                 targets = torch.zeros(batch_size,
-                                      # len(umls_concepts) + 1,
+                                      window_size,
                                       dtype=torch.long).to(device)
 
         if doc_idx % log_interval == 0:
