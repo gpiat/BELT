@@ -3,8 +3,8 @@ import pickle
 import torch
 
 from sys import argv
-from util import get_start_end_indices
 from util import get_text_window
+from util import pad
 from util import parse_args
 
 
@@ -54,8 +54,10 @@ def get_mention_prec_rec_f1(predictions, targets):
     fn = 0
 
     for i in range(len(predictions)):  # == len(targets)
-        predictions_i_ranges = cuid_list_to_ranges(predictions[i])
-        targets_i_ranges = cuid_list_to_ranges(targets[i])
+        predictions_i_ranges = [j for j in cuid_list_to_ranges(
+            predictions[i]) if j[2] != 0]
+        targets_i_ranges = [j for j in cuid_list_to_ranges(
+            targets[i]) if j[2] != 0]
 
         for prediction in predictions_i_ranges:
             if prediction in targets_i_ranges:
@@ -139,13 +141,20 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, umls_cuid_to_idx, numericalizer):
+def predict(model, document, umls_cuid_to_idx,
+            numericalizer, overlap):
     window_size = model.phrase_len
     document_tagged = []
     document_targets = []
-    text = numericalizer.numericalize_text(document.text)
-    for i in range(len(text)):
-        s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
+    text = numericalizer.numericalize_text(pad(document.text,
+                                               window_size,
+                                               overlap))
+
+    increment = round((1 - (overlap / 2)) * window_size)
+    for i in range(0, len(text), increment):
+        s_idx = max(min(i, len(text) - window_size), 0)
+        e_idx = min(len(text), window_size + i)
+        # s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
@@ -153,16 +162,47 @@ def predict(model, document, umls_cuid_to_idx, numericalizer):
         ).long().to(cst.device)
         document_targets.append(int(target))
 
-        output = model(data.unsqueeze(0), target_words=torch.Tensor(
-            [text[i]]).to(cst.device))
-        document_tagged.append(int(torch.argmax(output)))
+        output = model(data.unsqueeze(0))
+        # , target_words=torch.Tensor([text[i]]).to(cst.device))
+
+        # output shape: [minibatch=1, C, window_size]
+        # with C the number of classes for the classification problem
+        output = output.permute(2, 1, 0)
+        # output shape: [window_size, C, 1]
+
+        # The whole point of the overlapping windows is that with the
+        # fixed window, we don't have wnough bidirectional context at
+        # the beginning and end. This is where we figure out which
+        # predictions to keep and which to trash
+
+        # General case: Each window looks like this:
+        # with O meaning "overlapping token" and N meaning "Normal token"
+        # O O O O N N N N N N N N N N N N N N N N O O O O
+        # Here, there are eight Os and 16 Ns. The overlap is 1/3
+        # Each block of Os accounts for half of the overlap
+        # We keep the inner halves of each block of overlap and discard
+        # the outer halves as such:     (D for Discard, K for Keep)
+        # D D K K K K K K K K K K K K K K K K K K K K D D
+        start = round((overlap / 4) * window_size)
+        stop = len(output) - (overlap / 4)
+        # Special cases: the very beginning and end of the text do not
+        # overlap with another window, therefore they cannot be discarded.
+        if i == 0:
+            start = 0
+        elif i + window_size == len(text):
+            stop = len(output)
+        # shape of output[j]: [C, 1], basically a vector.
+        # the explicit 2nd dimension of the Tensor isn't a problem
+        # when dealing with argmax.
+        document_tagged += [int(torch.argmax(output[j]))
+                            for j in range(start, stop)]
 
         loss_increment = (len(data) * cst.criterion(output, target).item())
     return document_tagged, document_targets, loss_increment
 
 
 def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
-             compute_p_r_f1=False):
+             txt_window_overlap, compute_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
@@ -185,7 +225,8 @@ def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
     with torch.no_grad():
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
-                predict(model, document, umls_cuid_to_idx, numericalizer)
+                predict(model, document, umls_cuid_to_idx,
+                        numericalizer, txt_window_overlap)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
@@ -209,9 +250,11 @@ if __name__ == '__main__':
     args['--targets_fname'] = cst.wd + "targets.out"
     args['--write_pred'] = False
     args['--skip_eval'] = False
+    args['--overlap'] = 0.2
     # args['--window_size'] = 20
 
     parse_args(argv, args)
+    args['--overlap'] = float(args['--overlap'])
     # args['--window_size'] = int(args['--window_size'])
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
@@ -230,8 +273,8 @@ if __name__ == '__main__':
             print("number of documents: ", test_corpus.n_documents)
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
-                    predict(best_model, document,
-                            umls_cuid_to_idx, numericalizer)
+                    predict(best_model, document, umls_cuid_to_idx,
+                            numericalizer, args['--overlap'])
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
@@ -257,8 +300,9 @@ if __name__ == '__main__':
         (test_loss,
          (mention_precision, mention_recall, mention_f1),
          (doc_precision, doc_recall, doc_f1)) =\
-            evaluate(best_model, test_corpus, umls_cuid_to_idx,
-                     numericalizer, compute_p_r_f1=True)
+            evaluate(best_model, test_corpus,
+                     umls_cuid_to_idx, numericalizer,
+                     args['--overlap'], compute_p_r_f1=True)
 
         print('=' * 89)
         print('test loss {:5.2f}'.format(test_loss))
