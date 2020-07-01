@@ -98,7 +98,7 @@ class TransformerModel(nn.Module):
         output = self.decoder(output)
         ## torch.cat((output, target_word_embeddings), dim=1))
         # output shape: torch.Size([minibatch, window_size + 1, C])
-        # with C the number of classesfor the classification problem
+        # with C the number of classes for the classification problem
 
         ## output = self.decoder2(output.transpose(1, 2)).squeeze(2)
         # output shape: torch.Size([minibatch, C])

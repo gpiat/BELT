@@ -140,12 +140,15 @@ class MedMentionsDocument:
 
     def get_cuid(self, word_idx):
         """ Returns the CUID of a word given its index (returns
-            [None? 0? TODO] if not part of a UMLS concept mention)
+            None if not part of a UMLS concept mention)
             Args:
                 word_idx (int): index of the word in self.text
         """
 
         cuid = None
+
+        if word_idx >= len(self.text):
+            return cuid
 
         if self.split_by_char:
             s_e_i_copy = list(itertools.chain(*self.start_end_indices.copy()))
