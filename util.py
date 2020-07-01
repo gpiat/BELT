@@ -161,6 +161,42 @@ def select_optimizer(option, model, lr):
     return optimizer, scheduler
 
 
+def pad(text, window_size, overlap, batch_size=1):
+    # The overlap argument is a proportion, we're turning it into an
+    # actual number. Here, overlap refers to the proportion of a given
+    # window that is shared with either the previous or the next window.
+    # By this definition, 100% overlap is when the window slides by half
+    # the window size.
+    overlap = round(overlap * window_size / 2)
+    # now, "overlap" refers to the amount of overlap between one window
+    # and the next window. We want the text length to be of the form
+    # `a*(window_size - overlap) + overlap` with `a` a constant
+    # example: window_size = 5, overlap = 1, a = 3
+    # wwww owww owww w     < w for elements in a window, o for overlaps
+    # ---- =___ =--- -     < - for odd windows, _ for even ones,
+    #                        = for overlaps
+    # But first we need to handle the special case where the text is
+    # shorter than a = 1
+    if len(text) < window_size:
+        pad_amount = window_size - text
+    else:
+        excess = len(text) % (window_size - overlap)
+        # `excess` may be shorter or longer than `overlap`. If shorter,
+        # we want to pad it to the size of `overlap`. If longer, we want
+        # to pad it to `window_size + overlap`.
+        if excess < overlap:
+            pad_amount = overlap - excess
+        else:
+            pad_amount = window_size + overlap - excess
+    text += (['<pad>'] * pad_amount)
+    # Now we're actually not done. We need a to be a multiple of
+    # batch_size.
+    a = len(text) // (window_size - overlap)
+    incomplete_batch_size = a % batch_size
+    missing_windows = batch_size - incomplete_batch_size
+    text += ['<pad>'] * (window_size - overlap) * missing_windows
+
+
 def parse_args(argv, args):
     """ parses a list of arguments into a dictionary
         more easily interpretable in code.
