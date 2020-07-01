@@ -9,8 +9,8 @@ from constants import criterion
 from constants import device
 
 from util import Numericalizer
-from util import get_start_end_indices
 from util import get_text_window
+from util import pad
 from util import parse_args
 from util import select_optimizer
 
@@ -20,7 +20,7 @@ from sys import argv
 
 
 def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
-          batch_size, overlap=0.8, epoch=0, log_interval=200):
+          batch_size, overlap=0.2, epoch=0, log_interval=200):
     """ Args:
             model
             corpus
@@ -41,11 +41,10 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
     total_loss = 0.
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):
-        if len(document.text) < window_size:
-            print("PMID " + document.pmid + ": Document too short to process")
-            continue
-        # print(doc_idx, document.text[1:10])
-        text = numericalizer.numericalize_text(document.text)
+        text = numericalizer.numericalize_text(pad(document.text,
+                                                   window_size,
+                                                   overlap,
+                                                   batch_size))
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
@@ -55,10 +54,16 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         ## target_words = torch.zeros(batch_size, dtype=torch.long).to(device)
 
         # Here we're going over the text with a sliding window with overlap.
-        # The idea is that the first quarter and last quarter of the predicted
-        # labels likely don't have enough context to give an accurate
-        # prediction.
-        for i in range(0, len(text), round(((1 - overlap) / 2) * window_size)):
+        # The idea is that the first x% and last x% of the predicted
+        # labels likely don't have enough bidirectional context to give an
+        # accurate prediction.
+        increment = round((1 - (overlap / 2)) * window_size)
+        # example: overlap = 0.2, window_size = 10
+        # 1 - (overlap / 2) = 0.9
+        # increment = 9
+        # the use of `round` is a response to floating point errors.
+        # Without it, `increment` might be something like 8.9999 in some cases.
+        for i in range(0, len(text), increment):
             start_index = max(min(i, len(text) - window_size), 0)
             end_index = min(len(text), window_size + i)
             ## start_index, end_index = i, window_size + i
@@ -124,12 +129,14 @@ if __name__ == '__main__':
     args['--lr'] = 5
     args['--window_size'] = 20
     args['--batch_size'] = 35
+    args['--overlap'] = 0.2
 
     parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
     args['--lr'] = float(args['--lr'])
     args['--window_size'] = int(args['--window_size'])
     args['--batch_size'] = int(args['--batch_size'])
+    args['--overlap'] = float(args['--overlap'])
 
     try:
         with open(args['--train_fname'], 'rb') as train_file:
@@ -189,7 +196,8 @@ if __name__ == '__main__':
         epoch_start_time = time.time()
         train(model, train_corpus, umls_concepts,
               optimizer, scheduler, numericalizer,
-              batch_size=args["--batch_size"], epoch=epoch)
+              batch_size=args["--batch_size"],
+              overlap=args['--overlap'], epoch=epoch)
 
         (train_loss,
          train_mention_p_r_f1,
@@ -197,6 +205,7 @@ if __name__ == '__main__':
                                       train_corpus,
                                       umls_concepts,
                                       numericalizer,
+                                      args['--overlap'],
                                       compute_p_r_f1=True)
         (val_loss,
          val_mention_p_r_f1,
@@ -204,6 +213,7 @@ if __name__ == '__main__':
                                     val_corpus,
                                     umls_concepts,
                                     numericalizer,
+                                    args['--overlap'],
                                     compute_p_r_f1=True)
         val_corpus.loop_documents()
 
