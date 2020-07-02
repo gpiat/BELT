@@ -162,6 +162,20 @@ def select_optimizer(option, model, lr):
 
 
 def pad(text, window_size, overlap, batch_size=1):
+    """ Pads text with iterations of the '<pad>' token so that a whole number
+        of batches of a whole number of overlapping windows fits in the length
+        of the text.
+        Args:
+            text (list<str>): the text to pad
+            window_size (int): the size of the windows of text that will be
+                processed
+            overlap (float[0,1]): the proportion of text that should overlap
+                between windows. 0 = no overlap, 1 = the window will slide
+                by half its size
+            batch_size (int): number of windows to process simultaneously.
+                defaults to 1.
+    """
+    out_text = text.copy()
     # The overlap argument is a proportion, we're turning it into an
     # actual number. Here, overlap refers to the proportion of a given
     # window that is shared with either the previous or the next window.
@@ -177,24 +191,24 @@ def pad(text, window_size, overlap, batch_size=1):
     #                        = for overlaps
     # But first we need to handle the special case where the text is
     # shorter than a = 1
-    if len(text) < window_size:
-        pad_amount = window_size - text
+    if len(text) <= window_size:
+        pad_amount = window_size - len(text)
     else:
-        excess = len(text) % (window_size - overlap)
-        # `excess` may be shorter or longer than `overlap`. If shorter,
-        # we want to pad it to the size of `overlap`. If longer, we want
-        # to pad it to `window_size + overlap`.
-        if excess < overlap:
-            pad_amount = overlap - excess
-        else:
-            pad_amount = window_size + overlap - excess
-    text += (['<pad>'] * pad_amount)
+        excess = (len(text) - overlap) % (window_size - overlap)
+        if excess > 0:
+            # the padding amount is however much you need to fill up a
+            # window after accounting for excess and overlap
+            pad_amount = window_size - overlap - excess
+
+    out_text += (['<pad>'] * pad_amount)
     # Now we're actually not done. We need a to be a multiple of
     # batch_size.
-    a = len(text) // (window_size - overlap)
+    a = len(out_text) // (window_size - overlap)
     incomplete_batch_size = a % batch_size
-    missing_windows = batch_size - incomplete_batch_size
-    text += ['<pad>'] * (window_size - overlap) * missing_windows
+    if incomplete_batch_size > 0:
+        missing_windows = batch_size - incomplete_batch_size
+        out_text += ['<pad>'] * (window_size - overlap) * missing_windows
+    return out_text
 
 
 def parse_args(argv, args):
