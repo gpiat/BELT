@@ -11,11 +11,11 @@ class Numericalizer:
         self.vocab['<pad>'] = 1
 
     def numericalize_text(self, text):
-        """ maps a list of words to a unique list of integers"""
+        """ maps a list of tokens to a unique list of integers"""
         numericalized = []
-        for word in text:
+        for token in text:
             try:
-                numericalized.append(self.vocab[word])
+                numericalized.append(self.vocab[token])
             except KeyError:
                 numericalized.append(self.vocab['<unk>'])
         return numericalized
@@ -71,7 +71,7 @@ def get_start_end_indices(i, text_len, window_size):
 
 
 def select_optimizer(option, model, lr):
-        # optimizer selection
+    # optimizer selection
 
     if option == "adam":
         optimizer = torch.optim.Adam(model.parameters())
