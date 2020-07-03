@@ -184,12 +184,12 @@ def predict(model, document, umls_cuid_to_idx,
         # the outer halves as such:     (D for Discard, K for Keep)
         # D D K K K K K K K K K K K K K K K K K K K K D D
         start = round((overlap / 4) * window_size)
-        stop = len(output) - (overlap / 4)
+        stop = len(output) - start
         # Special cases: the very beginning and end of the text do not
         # overlap with another window, therefore they cannot be discarded.
         if i == 0:
             start = 0
-        elif i + window_size == len(text):
+        if i + window_size == len(text):
             stop = len(output)
         # shape of output[j]: [C, 1], basically a vector.
         # the explicit 2nd dimension of the Tensor isn't a problem
