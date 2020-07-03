@@ -191,6 +191,7 @@ def pad(text, window_size, overlap, batch_size=1):
     #                        = for overlaps
     # But first we need to handle the special case where the text is
     # shorter than a = 1
+    pad_amount = 0
     if len(text) <= window_size:
         pad_amount = window_size - len(text)
     else:
@@ -200,7 +201,7 @@ def pad(text, window_size, overlap, batch_size=1):
             # window after accounting for excess and overlap
             pad_amount = window_size - overlap - excess
 
-    out_text += (['<pad>'] * pad_amount)
+    out_text += ['<pad>'] * pad_amount
     # Now we're actually not done. We need a to be a multiple of
     # batch_size.
     a = len(out_text) // (window_size - overlap)
