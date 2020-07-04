@@ -197,8 +197,14 @@ def predict(model, document, umls_cuid_to_idx,
         # when dealing with argmax.
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
-
-        loss_increment = (len(data) * cst.criterion(output, target).item())
+        # TODO: delete try/except if no further issues
+        try:
+            loss_increment = (
+                len(data) * cst.criterion(output, target.unsqueeze(1)).item())
+        except ValueError as e:
+            print("output size: ", output.size())
+            print("target size: ", target.size())
+            raise e
     return document_tagged, document_targets, loss_increment
 
 
