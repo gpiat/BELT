@@ -158,9 +158,10 @@ def predict(model, document, umls_cuid_to_idx,
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
-            [umls_cuid_to_idx[document.get_cuid(i)]]
+            [umls_cuid_to_idx[j]
+                for j in document.get_cuids(i, i + window_size)]
         ).long().to(cst.device)
-        document_targets.append(int(target))
+        document_targets.extend(target.tolist())
 
         output = model(data.unsqueeze(0))
         # , target_words=torch.Tensor([text[i]]).to(cst.device))
