@@ -2,6 +2,8 @@ import math
 import torch
 import torch.nn as nn
 
+from constants import device
+
 from torch.nn.modules import TransformerEncoder
 from torch.nn.modules import TransformerEncoderLayer
 
@@ -122,10 +124,11 @@ class TransformerModel(nn.Module):
         _BxWx1 = torch.ones(src.unsqueeze(2).size())
         # creating the identity matrix but with 1 matrix per batch
         identity_tensor = torch.eye(src.shape[1]).unsqueeze(0) * _BxWx1
+        identity_tensor = identity_tensor.to(device)
 
         # creating the mask but missing padding tokens allowed to attend
         # to themselves
-        mask = (src != self.pad_token).float()
+        mask = (src != self.pad_token).float().to(device)
         # mask.shape = src.shape = [batch_size, window_size]
         mask = mask.unsqueeze(1) * mask.unsqueeze(2)
         # mask.shape = src.shape = [batch_size, window_size, window_size]
