@@ -49,6 +49,7 @@ class TransformerModel(nn.Module):
         self.model_type = 'Transformer'
         self.phrase_len = phrase_len
         self.pad_token = pad_token
+        self.numheads = nhead
 
         self.encoder = nn.Embedding(ntoken, embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
@@ -167,8 +168,11 @@ class TransformerModel(nn.Module):
         output = self.encoder(src) * math.sqrt(self.embed_size)
         # output shape: torch.Size([minibatch, window_size, embed_size])
         output = self.pos_encoder(output)
+
+        mask = (src != self.pad_token).to(device)
         output = self.transformer_encoder(output,
-                                          self._generate_mask(src))
+                                          src_key_padding_mask=mask)
+        # self._generate_mask(src))
         # output shape: torch.Size([minibatch, window_size, embed_size])
 
         output = self.decoder(output)
