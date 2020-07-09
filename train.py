@@ -4,6 +4,7 @@ import math
 import pickle
 import time
 import torch
+import sys
 
 from constants import criterion
 from constants import device
@@ -118,18 +119,44 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             start_time = time.time()
 
 
+def help(args, issue_description=""):
+    print(issue_description)
+    arg_descriptions = [
+        "preloaded pickled training corpus filename",
+        "preloaded pickled validation / dev corpus filename",
+        "filename in which to save the model and from which to"
+        " load it if not training from scratch",
+        "path for all files to be written (model, stat files)",
+        "number of epochs to train for",
+        "name of the optimizer",
+        "learning rate",
+        "size of the window of input tokens",
+        "size of the batch of windows",
+        "proportion of overlap between windows (in [0,1])",
+        'can be "bin" for pure entity identification,'
+        ' "semtype" for semantic type IDs'
+        ' or "cuid" for UMLS Concept Unique Identifiers'
+    ]
+    for item in zip(args.keys(), arg_descriptions):
+        print(item)
+
+
 if __name__ == '__main__':
     args = {}
     args['--train_fname'] = cst.train_fname
     args['--val_fname'] = cst.val_fname
     args['--model_fname'] = cst.model_fname
-    args['--epochs'] = 10
     args['--writepath'] = cst.wd
+    args['--epochs'] = 10
     args['--optim'] = "SGD"
     args['--lr'] = 5
     args['--window_size'] = 20
     args['--batch_size'] = 35
     args['--overlap'] = 0.2
+    # target type can be "bin" for pure entity identification,
+    # "semtype" for semantic type IDs
+    # or "cuid" for UMLS Concept Unique Identifiers
+    args['--target_type'] = 'cuid'
 
     parse_args(argv, args)
     args['--epochs'] = int(args['--epochs'])
@@ -137,6 +164,10 @@ if __name__ == '__main__':
     args['--window_size'] = int(args['--window_size'])
     args['--batch_size'] = int(args['--batch_size'])
     args['--overlap'] = float(args['--overlap'])
+
+    if args['--target_type'] not in ["bin", "semtype", "cuid"]:
+        help(args, "Invalid target type")
+        sys.exit(1)
 
     try:
         with open(args['--train_fname'], 'rb') as train_file:
