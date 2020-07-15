@@ -165,23 +165,18 @@ class TransformerModel(nn.Module):
 
     def forward(self, src):
         # src shape: torch.Size([minibatch, window_size])
-        src = src.permute(0, 1)
-        # src shape: torch.Size([window_size, minibatch])
-
         output = self.encoder(src) * math.sqrt(self.embed_size)
-        # output shape: torch.Size([window_size, minibatch, embed_size])
+        # output shape: torch.Size([minibatch, window_size, embed_size])
         output = self.pos_encoder(output)
 
-        mask = (src != self.pad_token).to(device)
-        print("src size: ", src.size())
-        print("mask size: ", mask.size())
+        mask = (src != self.pad_token).to(device).transpose(0, 1)
         output = self.transformer_encoder(output,
                                           src_key_padding_mask=mask)
         # self._generate_mask(src))
-        # output shape: torch.Size([window_size, minibatch, embed_size])
+        # output shape: torch.Size([minibatch, window_size, embed_size])
 
         output = self.decoder(output)
-        # output shape: torch.Size([window_size, minibatch, C])
+        # output shape: torch.Size([minibatch, window_size + 1, C])
         # with C the number of classes for the classification problem
 
         # To perform Softmax properly, torch.nn.CrossEntropyLoss expects
