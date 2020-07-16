@@ -28,14 +28,16 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class TransformerModel(nn.Module):
+class BELT(nn.Module):
 
-    def __init__(self, ntoken, n_umls_concepts,
+    def __init__(self, ntoken, n_classes,
                  embed_size, nhead, nhid, nlayers,
                  phrase_len, dropout=0.5, pad_token=1):
         """Args:
             - <int> ntoken: vocabulary size
-            - <int> n_umls_concepts: number of UMLS concepts to choose from
+            - <int> n_classes: number of classes (such as UMLS concepts)
+                that each token can fall into, not including the default
+                class.
             - <int> embed_size: embedding size
             - <int> nhead: number of heads in the multiheadattention models
             - <int> nhid: dimension of the FFNN in the encoder
@@ -45,18 +47,19 @@ class TransformerModel(nn.Module):
             - pad_token: the number associated with the padding token.
                 Defaults to 1 (assuming 0 is reserved for <UNK>)
         """
-        super(TransformerModel, self).__init__()
+        super(BELT, self).__init__()
         self.model_type = 'Transformer'
         self.phrase_len = phrase_len
         self.pad_token = pad_token
         self.numheads = nhead
+        self.n_classes = n_classes
 
         self.encoder = nn.Embedding(ntoken, embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
         encoder_layers = TransformerEncoderLayer(embed_size, nhead,
                                                  nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.decoder = nn.Linear(embed_size, n_umls_concepts + 1)
+        self.decoder = nn.Linear(embed_size, n_classes + 1)
 
         self.embed_size = embed_size
         self.init_weights()
@@ -161,6 +164,9 @@ class TransformerModel(nn.Module):
     def init_weights(self, initrange=0.1):
         self.encoder.weight.data.uniform_(-initrange, initrange)
         self.decoder.bias.data.zero_()
+        self._init_decoder_weights(initrange)
+
+    def _init_decoder_weights(self, initrange):
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src):
@@ -186,3 +192,8 @@ class TransformerModel(nn.Module):
         output = output.permute(0, 2, 1)
         # output shape: [minibatch, C, window_size]
         return output
+
+    def recycle(self, new_n_classes, initrange=0.1):
+        self.n_classes = new_n_classes
+        self.decoder = nn.Linear(self.embed_size, self.n_classes + 1)
+        self._init_decoder_weights(initrange)
