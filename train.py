@@ -2,9 +2,11 @@ import constants as cst
 import csv
 import math
 import pickle
+import sys
 import time
 import torch
-import sys
+
+from args_handler import get_train_args
 
 from constants import criterion
 from constants import device
@@ -12,11 +14,10 @@ from constants import device
 from util import Numericalizer
 from util import get_text_window
 from util import pad
-from util import parse_args
 from util import select_optimizer
 
 from evaluate import evaluate
-from model import TransformerModel
+from model import BELT
 from sys import argv
 
 
@@ -52,7 +53,6 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         data = torch.zeros(batch_size,
                            window_size,
                            dtype=torch.long).to(device)
-        ## target_words = torch.zeros(batch_size, dtype=torch.long).to(device)
 
         # Here we're going over the text with a sliding window with overlap.
         # The idea is that the first x% and last x% of the predicted
@@ -67,10 +67,10 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
         for i in range(0, len(text), increment):
             start_index = max(min(i, len(text) - window_size), 0)
             end_index = min(len(text), window_size + i)
-            ## start_index, end_index = i, window_size + i
-            # TODO: prevent processing the same text segment multiple times when
-            # getting to the end of the text
-            ## start_index, end_index = get_start_end_indices(i, len(text), window_size)
+            # TODO: prevent processing the same text segment multiple times
+            # when getting to the end of the text.
+            # UPDATE: what am I talking about? Why would the text segment be
+            # processed multiple times??
 
             data[i % batch_size] = get_text_window(
                 text, window_size, start_index, end_index)
@@ -78,15 +78,16 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             target = [umls_concepts[cuid]
                       for cuid in document.get_cuids(start_index, end_index)]
             targets[i % batch_size] = torch.Tensor(target).to(device)
-            ## target_words[i % batch_size] = text[i]
 
             # the fact that we do this processing only every batch_size
             # steps means that we don't do it if the remainder of the
-            # text does not consitute a full batch. This is intentional,
+            # text does not constitute a full batch. This is intentional,
             # and the standard way of handling this case.
+            # UPDATE: the case where the remainder of the text does not
+            # constitute a full batch no longer occurs thanks to padding.
             if i % batch_size == 0:
                 optimizer.zero_grad()
-                output = model(data)  # , target_words)
+                output = model(data)
                 loss = criterion(output, targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
@@ -141,65 +142,50 @@ def help(args, issue_description=""):
         print(item)
 
 
-if __name__ == '__main__':
-    args = {}
-    args['--train_fname'] = cst.train_fname
-    args['--val_fname'] = cst.val_fname
-    args['--model_fname'] = cst.model_fname
-    args['--writepath'] = cst.wd
-    args['--epochs'] = 10
-    args['--optim'] = "SGD"
-    args['--lr'] = 5
-    args['--window_size'] = 20
-    args['--batch_size'] = 35
-    args['--overlap'] = 0.2
-    # target type can be "bin" for pure entity identification,
-    # "semtype" for semantic type IDs
-    # or "cuid" for UMLS Concept Unique Identifiers
-    args['--target_type'] = 'cuid'
-
-    parse_args(argv, args)
-    args['--epochs'] = int(args['--epochs'])
-    args['--lr'] = float(args['--lr'])
-    args['--window_size'] = int(args['--window_size'])
-    args['--batch_size'] = int(args['--batch_size'])
-    args['--overlap'] = float(args['--overlap'])
-
-    if args['--target_type'] not in ["bin", "semtype", "cuid"]:
-        help(args, "Invalid target type")
-        sys.exit(1)
-
+def load_files(args):
     try:
         with open(args['--train_fname'], 'rb') as train_file:
             train_corpus = pickle.load(train_file)
         with open(cst.umls_fname, 'rb') as umls_con_file:
             umls_concepts = pickle.load(umls_con_file)
         with open(args['--val_fname'], 'rb') as val_file:
-            val_corpus = pickle.load(val_file)
+            dev_corpus = pickle.load(val_file)
     except pickle.UnpicklingError:
-        print("Something went wrong when unpickling train, test, or "
-              "validation corpus. Please ensure the files are valid "
-              "python pickles.")
+        print("Something went wrong when unpickling the train corpus, "
+              "dev corpus, or UMLS concepts file. Please ensure the "
+              "specified files are valid python pickles.")
+        sys.exit(1)
     except FileNotFoundError:
-        print("One of the train, test, or validation corpus pickles "
-              "was not found. Please ensure that the file specified "
-              "as argument or in constants.py exists.")
+        print("One of the train corpus, dev corpus, or UMLS concept "
+              "pickles was not found. Please ensure that the file "
+              "specified as argument or in constants.py exists.")
+        sys.exit(1)
+    return train_corpus, umls_concepts, dev_corpus
+
+
+def load_model(argv, args):
+    if '--resume' not in argv:
+        model = BELT(ntoken=len(numericalizer.vocab),
+                     n_umls_concepts=len(umls_concepts),
+                     embed_size=200, nhead=2, nhid=200,
+                     nlayers=2, phrase_len=args['--window_size'],
+                     dropout=0.2).to(device)
+    else:
+        with open(args['--writepath'] + args['--model_fname'],
+                  'rb') as model_file:
+            model = pickle.load(model_file)
+    return model
+
+
+if __name__ == '__main__':
+    args = get_train_args(argv)
+    train_corpus, umls_concepts, dev_corpus = load_files(args)
 
     numericalizer = Numericalizer(train_corpus.vocab)
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
 
-    if '--resume' not in argv:
-        model = TransformerModel(ntoken=len(numericalizer.vocab),
-                                 n_umls_concepts=len(umls_concepts),
-                                 embed_size=200, nhead=2, nhid=200,
-                                 nlayers=2,  # batch_size=35,
-                                 phrase_len=args['--window_size'],
-                                 dropout=0.2).to(device)
-    else:
-        with open(args['--writepath'] + args['--model_fname'],
-                  'rb') as model_file:
-            model = pickle.load(model_file)
+    model = load_model(argv, args)
 
     print("running on: ", device)
 
@@ -241,12 +227,12 @@ if __name__ == '__main__':
         (val_loss,
          val_mention_p_r_f1,
          val_doc_p_r_f1) = evaluate(model,
-                                    val_corpus,
+                                    dev_corpus,
                                     umls_concepts,
                                     numericalizer,
                                     args['--overlap'],
                                     compute_p_r_f1=True)
-        val_corpus.loop_documents()
+        dev_corpus.loop_documents()
 
         print('-' * 89)
         try:
