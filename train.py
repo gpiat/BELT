@@ -21,12 +21,14 @@ from model import BELT
 from sys import argv
 
 
-def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
-          batch_size, overlap=0.2, epoch=0, log_interval=200):
+def train(model, corpus, target_finder, target_indexing, optimizer,
+          scheduler, numericalizer, batch_size, overlap=0.2, epoch=0,
+          log_interval=200):
     """ Args:
             model
             corpus
-            umls_concepts
+            target_finder: callable function that finds the target
+                for the text span
             optimizer
             scheduler
             numericalizer: Numericalizer object for numericalizing text
@@ -75,8 +77,8 @@ def train(model, corpus, umls_concepts, optimizer, scheduler, numericalizer,
             data[i % batch_size] = get_text_window(
                 text, window_size, start_index, end_index)
 
-            target = [umls_concepts[cuid]
-                      for cuid in document.get_cuids(start_index, end_index)]
+            target = target_finder(document, start_index,
+                                   end_index, target_indexing)
             targets[i % batch_size] = torch.Tensor(target).to(device)
 
             # the fact that we do this processing only every batch_size
@@ -146,10 +148,15 @@ def load_files(args):
     try:
         with open(args['--train_fname'], 'rb') as train_file:
             train_corpus = pickle.load(train_file)
-        with open(cst.umls_fname, 'rb') as umls_con_file:
-            umls_concepts = pickle.load(umls_con_file)
         with open(args['--val_fname'], 'rb') as val_file:
             dev_corpus = pickle.load(val_file)
+        if ((args['--target_type'] == "cuid" or
+             args['--target_type'] == "bin")):
+            with open(cst.umls_fname, 'rb') as umls_con_file:
+                target_indexing = pickle.load(umls_con_file)
+        else:
+            with open(cst.stid_fname, 'rb') as semtype_file:
+                target_indexing = pickle.load(semtype_file)
     except pickle.UnpicklingError:
         print("Something went wrong when unpickling the train corpus, "
               "dev corpus, or UMLS concepts file. Please ensure the "
@@ -160,7 +167,7 @@ def load_files(args):
               "pickles was not found. Please ensure that the file "
               "specified as argument or in constants.py exists.")
         sys.exit(1)
-    return train_corpus, umls_concepts, dev_corpus
+    return train_corpus, target_indexing, dev_corpus
 
 
 def load_model(argv, args):
@@ -177,8 +184,53 @@ def load_model(argv, args):
     return model
 
 
+def UMLS_target_finder(document,
+                       start_index,
+                       end_index,
+                       umls_concepts):
+    """ TODO: create access to umls_concepts
+    """
+    return [umls_concepts[cuid] for cuid in
+            document.get_mention_ids(start_index,
+                                     end_index,
+                                     mode="cuid")]
+
+
+def semtype_target_finder(document,
+                          start_index,
+                          end_index,
+                          sem_types):
+    """ TODO: create and give access to sem_types
+    """
+    return [sem_types[stid] for stid in
+            document.get_mention_ids(start_index,
+                                     end_index,
+                                     mode="semtype")]
+
+
+def binary_target_finder(document,
+                         start_index,
+                         end_index,
+                         umls_concepts):
+    targets = UMLS_target_finder(document, start_index,
+                                 end_index, umls_concepts)
+    return [min(i, 1) for i in targets]
+
+
+def set_targets(target_type):
+    if target_type == "cuid":
+        # target cst.umls_fname
+        return UMLS_target_finder
+    elif target_type == "semtype":
+        return semtype_target_finder
+    elif target_type == "bin":
+        return binary_target_finder
+
+
 if __name__ == '__main__':
     args = get_train_args(argv)
+    target_finder = set_targets(args['--target_type'])
+
     train_corpus, umls_concepts, dev_corpus = load_files(args)
 
     numericalizer = Numericalizer(train_corpus.vocab)
@@ -211,9 +263,9 @@ if __name__ == '__main__':
 
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
-        train(model, train_corpus, umls_concepts,
-              optimizer, scheduler, numericalizer,
-              batch_size=args["--batch_size"],
+        train(model, train_corpus, target_finder,
+              target_indexing, optimizer, scheduler,
+              numericalizer, batch_size=args["--batch_size"],
               overlap=args['--overlap'], epoch=epoch)
 
         (train_loss,
