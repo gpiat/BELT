@@ -17,6 +17,7 @@ test_corpus_pmids = corpus_split_prefix + "corpus_pubtator_pmids_test.txt"
 
 pkl_prefix = os.path.dirname(os.path.realpath(__file__)) + "/pickles/"
 umls_fname = pkl_prefix + "umls_concepts.pkl"
+stid_fname = pkl_prefix + "semantic_types.pkl"
 train_fname = pkl_prefix + "train.pkl"
 val_fname = pkl_prefix + "val.pkl"
 test_fname = pkl_prefix + "test.pkl"
