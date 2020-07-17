@@ -138,7 +138,7 @@ class MedMentionsDocument:
         self.start_end_indices = list(itertools.chain(
             [(e.start_idx - 1, e.stop_idx - 1) for e in self.umls_entities]))
 
-    def get_cuid(self, word_idx):
+    def get_mention_id(self, word_idx, mode="cuid"):
         """ Returns the CUID of a word given its index (returns
             None if not part of a UMLS concept mention)
             Args:
@@ -146,6 +146,7 @@ class MedMentionsDocument:
         """
 
         cuid = None
+        semtypeid = None
 
         if word_idx >= len(self.text):
             return cuid
@@ -168,7 +169,9 @@ class MedMentionsDocument:
             word_idx_idx = s_e_i_copy.index(word_idx)
             is_in_mention = bool(word_idx_idx % 2)
             if is_in_mention:
-                cuid = self.umls_entities[int(word_idx_idx / 2)].concept_ID
+                mention = self.umls_entities[int(word_idx_idx / 2)]
+                cuid = mention.concept_ID
+                semtypeid = mention.semantic_type_ID
         else:
             # The idea here is to find the CUID of a word despite only
             # having the CUID of spans of characters. We therefore find
@@ -192,15 +195,35 @@ class MedMentionsDocument:
             for mention in self.umls_entities:
                 if mention.start_idx <= char_idx < mention.stop_idx:
                     cuid = mention.concept_ID
+                    semtypeid = mention.semantic_type_ID
                     break  # it may theoretically be possible that one word is
                     # part of several UMLS mentions but that case would be
                     # impractical to handle and likely wouldn't matter at
                     # scale.
-        return cuid
+        if mode == "cuid":
+            return cuid
+        elif mode == "semtype":
+            return semtypeid
+        else:
+            raise ValueError('Invalid argument for method get_mention_id '
+                             ' of class MedMentionsDocument: "mode" argument '
+                             'must either have value "cuid" or "semtype", but '
+                             'found ' + str(mode))
 
-    def get_cuids(self, first_word_idx, last_word_idx):
-        return [self.get_cuid(word_idx) for word_idx in range(first_word_idx,
-                                                              last_word_idx)]
+    def get_mention_ids(self, first_token_idx, last_token_idx, mode="cuid"):
+        """ Gets the ID of the entity for the corresponding
+            mention of each token.
+            Args:
+                first_token_idx: index of the first token
+                    to examine in self.text
+                last_token_idx: index of the last token
+                    to examine in self.text
+                mode: one of "cuid" or "semtype" depending on whether the
+                    semantic type ID or UMLS Concept Unique Identifier
+                    should be returned.
+        """
+        return [self.get_mention_id(token_idx, mode=mode)
+                for token_idx in range(first_token_idx, last_token_idx)]
 
     def get_vocab(self):
         return list(set(self.text))
@@ -238,16 +261,18 @@ class MedMentionsCorpus:
         self._looping = auto_looping
         # self.no_punct = no_punct
         self.split_by_char = split_by_char
-        self.n_documents, self.cuids, self.vocab = self._get_cuids_and_vocab()
+        (self.n_documents, self.cuids, self.stids,
+         self.vocab) = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
 
     def _get_cuids_and_vocab(self):
-        """ Collects the CUIDs and vocabulary of the corpus.
+        """ Collects the CUIDs, STIDs and vocabulary of the corpus.
             Should not be used outside of the constructor, because
             it relies on the document counter being at the start.
             If you need CUIDs or vocab, use the appropriate attributes.
         """
         cuids = {}
+        stids = {}
         vocab = set()
         n_documents = 0
         for document in self.documents():
@@ -257,12 +282,14 @@ class MedMentionsCorpus:
                     cuids[entity.concept_ID] += 1
                 else:
                     cuids[entity.concept_ID] = 1
-                # old code from when cuids was a set
-                # cuids.add(entity.concept_ID)
+                if entity.semantic_type_ID in stids:
+                    stids[entity.semantic_type_ID] += 1
+                else:
+                    stids[entity.semantic_type_ID] = 1
             for word in document.text:
                 vocab.add(word)
         self.loop_documents()
-        return n_documents, cuids, vocab
+        return n_documents, cuids, stids, vocab
 
     def documents(self):
         """ Yields:
