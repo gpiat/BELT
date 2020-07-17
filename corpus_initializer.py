@@ -1,9 +1,8 @@
-import constants as cst
 import pickle
-from util import parse_args
 
 from sys import argv
 
+from args_handler import get_corpus_init_args
 from medmentions import MedMentionsCorpus
 
 
@@ -18,10 +17,6 @@ def _UMLS_concepts_initializer(corpus, dct):
                      for index, (cuid, number) in
                      enumerate(corpus.cuids.items())}
 
-    # TODO: erase this old code from before the
-    #   full default category implementation
-    # umls_concepts = {cuid: (index + 2)
-    #                  for index, cuid in enumerate(umls_concepts)}
     umls_concepts["other"] = 1
 
     # the zeroth concept is the non-concept.
@@ -29,9 +24,9 @@ def _UMLS_concepts_initializer(corpus, dct):
     return umls_concepts
 
 
-def UMLS_concepts_init(fnames,
-                       corpora=None, dflt_cat_thresh=0):
-    """ Pickles a dictionary mapping CUIDs found ina list of corpora to
+def UMLS_concepts_init(fnames, corpora=None,
+                       dflt_cat_thresh=0):
+    """ Pickles a dictionary mapping CUIDs found in a list of corpora to
         indices.
         Args:
             - (str) outfile: path of the file to write the pickle to.
@@ -47,6 +42,36 @@ def UMLS_concepts_init(fnames,
     umls_concepts = _UMLS_concepts_initializer(corpus, dflt_cat_thresh)
     with open(fnames["--umls_fname"], 'wb') as f:
         pickle.dump(umls_concepts, f)
+
+
+def semantic_types_init(fnames, corpora=None):
+    """ Pickles a dictionary mapping Semantic Type IDs found in a list
+        of corpora to indices.
+        Args:
+            - (str) outfile: path of the file to write the pickle to.
+                Defaults to the file name given in constants.py.
+            - (list<str>) corpora: filenames of the PubTator-format
+                corpora to use. All the CUIDs used come from these corpora.
+    """
+    if corpora is None:
+        corpora = [fnames["--full_corpus_fname"]]
+    corpus = MedMentionsCorpus(corpora)
+    mentions = 0
+    for doc in corpus.documents():
+        mentions += len(doc.umls_entities)
+    print(mentions)
+    # TODO:
+    # corpus is ['/home/gpiat/Documents/Datasets/'
+    #            'MedMentions/st21pv/data/corpus_pubtator.txt']
+    # number of documents is 4392
+    # number of mentions is 203282
+    # number of stids is 21
+    # yet adding up the number of occurences of each stid, I get 231
+    semantic_types = {stid: (index + 1)
+                      for index, (stid, _) in
+                      enumerate(corpus.stids.items())}
+    with open(fnames["--st21_fname"], 'wb') as f:
+        pickle.dump(semantic_types, f)
 
 
 def create_corpora(fnames):
@@ -100,28 +125,7 @@ def pickle_corpora(fnames):
 
 if __name__ == '__main__':
 
-    args = {
-        "--full_corpus_fname": cst.full_corpus_fname,
-        "--train_corpus_pmids": cst.train_corpus_pmids,
-        "--val_corpus_pmids": cst.val_corpus_pmids,
-        "--test_corpus_pmids": cst.test_corpus_pmids,
-
-        # create_corpora specific
-        "--med_corpus_train": cst.med_corpus_train,
-        "--med_corpus_val": cst.med_corpus_val,
-        "--med_corpus_test": cst.med_corpus_test,
-
-        # pickle_corpora specific
-        "--train_fname": cst.train_fname,
-        "--val_fname": cst.val_fname,
-        "--test_fname": cst.test_fname,
-        "--nopunct": False,
-        "--split_by_char": False,
-
-        # UMLS_concepts_init specific
-        "--umls_fname": cst.umls_fname
-    }
-    parse_args(argv, args)
+    args = get_corpus_init_args(argv)
 
     no_valid_args = True
 
@@ -137,6 +141,7 @@ if __name__ == '__main__':
             # number that (hopefully) comes after "--dct" in argv
             dct = int(argv[argv.index("--dct") + 1])
         UMLS_concepts_init(fnames=args, dflt_cat_thresh=dct)
+        semantic_types_init(fnames=args)
 
     if no_valid_args:
         print("No valid arguments passed.\n"
