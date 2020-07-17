@@ -59,3 +59,30 @@ def get_train_args(argv):
         sys.exit(1)
 
     return args
+
+
+def get_corpus_init_args(argv):
+    args = {
+        "--full_corpus_fname": cst.full_corpus_fname,
+        "--train_corpus_pmids": cst.train_corpus_pmids,
+        "--val_corpus_pmids": cst.val_corpus_pmids,
+        "--test_corpus_pmids": cst.test_corpus_pmids,
+
+        # create_corpora specific
+        "--med_corpus_train": cst.med_corpus_train,
+        "--med_corpus_val": cst.med_corpus_val,
+        "--med_corpus_test": cst.med_corpus_test,
+
+        # pickle_corpora specific
+        "--train_fname": cst.train_fname,
+        "--val_fname": cst.val_fname,
+        "--test_fname": cst.test_fname,
+        "--nopunct": False,
+        "--split_by_char": False,
+
+        # UMLS_concepts_init specific
+        "--umls_fname": cst.umls_fname,
+        "--st21_fname": cst.stid_fname
+    }
+    parse_args(argv, args)
+    return args
