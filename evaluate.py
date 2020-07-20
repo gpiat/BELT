@@ -254,7 +254,9 @@ if __name__ == '__main__':
     args = get_evaluate_args(argv)
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
+        # TODO: GENERALIZE TO STIDs & BIN
         umls_cuid_to_idx = pickle.load(umls_con_file)
+
     with open(args['--numer_fname'], 'rb') as numericalizer_file:
         numericalizer = pickle.load(numericalizer_file)
     with open(args['--test_fname'], 'rb') as test_file:
