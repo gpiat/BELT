@@ -1,7 +1,8 @@
+import pickle
 import torch
-import torch_optimizer
+
 from constants import device
-# from math import ceil
+from model import BELT
 
 
 class Numericalizer:
@@ -22,15 +23,9 @@ class Numericalizer:
 
 
 class FastTextVectorizer(Numericalizer):
+    # TODO
     def __init__(self, vocab):
         pass
-
-
-# def prod(numbers):
-#     res = 1
-#     for i in numbers:
-#         res *= i
-#     return res
 
 
 def get_text_window(text, window_size, start_index, end_index):
@@ -68,97 +63,6 @@ def get_start_end_indices(i, text_len, window_size):
                         window_size),
                     text_len)
     return start_index, end_index
-
-
-def select_optimizer(option, model, lr):
-    # optimizer selection
-
-    if option == "adam":
-        optimizer = torch.optim.Adam(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "radam":
-        optimizer = torch_optimizer.RAdam(model.parameters(),
-                                          lr=0.001,
-                                          betas=(0.9, 0.999),
-                                          eps=1e-8,
-                                          weight_decay=0)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "adamw":
-        optimizer = torch.optim.AdamW(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "adamax":
-        optimizer = torch.optim.Adamax(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "adagrad":
-        optimizer = torch.optim.Adagrad(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "adadelta":
-        optimizer = torch.optim.Adadelta(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "adabound":
-        optimizer = torch_optimizer.AdaBound(
-            model.parameters(),
-            lr=1e-3,
-            betas=(0.9, 0.999),
-            final_lr=0.1,
-            gamma=1e-3,
-            eps=1e-8,
-            weight_decay=0,
-            amsbound=False,
-        )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "sparseadam":
-        optimizer = torch.optim.SparseAdam(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "lbfgs":
-        optimizer = torch.optim.LBFGS(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "rmsprop":
-        optimizer = torch.optim.RMSprop(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "rprop":
-        optimizer = torch.optim.Rprop(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "lamb":
-        optimizer = torch_optimizer.Lamb(
-            model.parameters(),
-            lr=1e-3,
-            betas=(0.9, 0.999),
-            eps=1e-8,
-            weight_decay=0,
-        )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
-    elif option == "asgd":
-        optimizer = torch.optim.ASGD(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "accsgd":
-        optimizer = torch_optimizer.AccSGD(
-            model.parameters(),
-            lr=1e-3,
-            kappa=1000.0,
-            xi=10.0,
-            small_const=0.7,
-            weight_decay=0
-        )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "sgdw":
-        optimizer = torch_optimizer.SGDW(
-            model.parameters(),
-            lr=1e-3,
-            momentum=0,
-            dampening=0,
-            weight_decay=1e-2,
-            nesterov=False,
-        )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
-    elif option == "sgd":
-        optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                    10.0,
-                                                    gamma=0.01)
-    else:
-        raise TypeError("optimizer name not recognized")
-    return optimizer, scheduler
 
 
 def pad(text, window_size, overlap, batch_size=1):
@@ -210,3 +114,82 @@ def pad(text, window_size, overlap, batch_size=1):
         missing_windows = batch_size - incomplete_batch_size
         out_text += ['<pad>'] * (window_size - overlap) * missing_windows
     return out_text
+
+
+def load_model(argv, args, vocab_size, n_classes):
+    if '--resume' not in argv:
+        model = BELT(ntoken=vocab_size,
+                     n_classes=n_classes,
+                     embed_size=200, nhead=2, nhid=200,
+                     nlayers=2, phrase_len=args['--window_size'],
+                     dropout=0.2).to(device)
+    else:
+        with open(args['--writepath'] + args['--model_fname'],
+                  'rb') as model_file:
+            model = pickle.load(model_file)
+    return model
+
+
+def CUID_target_finder(document,
+                       start_index,
+                       end_index,
+                       umls_concepts):
+    """ Finds the targets for a set of tokens when in "cuid" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    return [umls_concepts[cuid] for cuid in
+            document.get_mention_ids(start_index,
+                                     end_index,
+                                     mode="cuid")]
+
+
+def semtype_target_finder(document,
+                          start_index,
+                          end_index,
+                          sem_types):
+    """ Finds the targets for a set of tokens when in "semantic type" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            sem_types (dict): lookup table to translate
+                STIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    return [sem_types[stid] for stid in
+            document.get_mention_ids(start_index,
+                                     end_index,
+                                     mode="semtype")]
+
+
+def binary_target_finder(document,
+                         start_index,
+                         end_index,
+                         umls_concepts):
+    """ Finds the targets for a set of tokens when in "bin" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    targets = CUID_target_finder(document, start_index,
+                                 end_index, umls_concepts)
+    return [min(i, 1) for i in targets]
+
+
+def set_targets(target_type):
+    if target_type == "cuid":
+        return CUID_target_finder
+    elif target_type == "semtype":
+        return semtype_target_finder
+    elif target_type == "bin":
+        return binary_target_finder
