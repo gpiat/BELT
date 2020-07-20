@@ -15,9 +15,10 @@ from util import Numericalizer
 from util import get_text_window
 from util import pad
 from util import select_optimizer
+from util import set_targets
+from util import load_model
 
 from evaluate import evaluate
-from model import BELT
 from sys import argv
 
 
@@ -170,85 +171,6 @@ def load_files(args):
     return train_corpus, target_indexing, dev_corpus
 
 
-def load_model(argv, args, n_classes):
-    if '--resume' not in argv:
-        model = BELT(ntoken=len(numericalizer.vocab),
-                     n_classes=n_classes,
-                     embed_size=200, nhead=2, nhid=200,
-                     nlayers=2, phrase_len=args['--window_size'],
-                     dropout=0.2).to(device)
-    else:
-        with open(args['--writepath'] + args['--model_fname'],
-                  'rb') as model_file:
-            model = pickle.load(model_file)
-    return model
-
-
-def CUID_target_finder(document,
-                       start_index,
-                       end_index,
-                       umls_concepts):
-    """ Finds the targets for a set of tokens when in "cuid" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            umls_concepts (dict): lookup table to translate
-                CUIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    return [umls_concepts[cuid] for cuid in
-            document.get_mention_ids(start_index,
-                                     end_index,
-                                     mode="cuid")]
-
-
-def semtype_target_finder(document,
-                          start_index,
-                          end_index,
-                          sem_types):
-    """ Finds the targets for a set of tokens when in "semantic type" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            sem_types (dict): lookup table to translate
-                STIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    return [sem_types[stid] for stid in
-            document.get_mention_ids(start_index,
-                                     end_index,
-                                     mode="semtype")]
-
-
-def binary_target_finder(document,
-                         start_index,
-                         end_index,
-                         umls_concepts):
-    """ Finds the targets for a set of tokens when in "bin" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            umls_concepts (dict): lookup table to translate
-                CUIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    targets = CUID_target_finder(document, start_index,
-                                 end_index, umls_concepts)
-    return [min(i, 1) for i in targets]
-
-
-def set_targets(target_type):
-    if target_type == "cuid":
-        return CUID_target_finder
-    elif target_type == "semtype":
-        return semtype_target_finder
-    elif target_type == "bin":
-        return binary_target_finder
-
-
 if __name__ == '__main__':
     args = get_train_args(argv)
     target_finder = set_targets(args['--target_type'])
@@ -259,7 +181,10 @@ if __name__ == '__main__':
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
 
-    model = load_model(argv, args, len(target_indexing))
+    model = load_model(argv,
+                       args,
+                       vocab_size=len(numericalizer.vocab),
+                       n_classes=len(target_indexing))
 
     print("running on: ", device)
 
