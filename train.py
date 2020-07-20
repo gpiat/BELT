@@ -209,6 +209,7 @@ if __name__ == '__main__':
             writer.writerows(column_headers)
 
     for epoch in range(args['--epochs']):
+        # TODO: figure out why this loop never stops
         epoch_start_time = time.time()
         train(model, train_corpus, target_finder,
               target_indexing, optimizer, scheduler,
