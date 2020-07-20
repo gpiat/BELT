@@ -56,20 +56,11 @@ def semantic_types_init(fnames, corpora=None):
     if corpora is None:
         corpora = [fnames["--full_corpus_fname"]]
     corpus = MedMentionsCorpus(corpora)
-    mentions = 0
-    for doc in corpus.documents():
-        mentions += len(doc.umls_entities)
-    print(mentions)
-    # TODO:
-    # corpus is ['/home/gpiat/Documents/Datasets/'
-    #            'MedMentions/st21pv/data/corpus_pubtator.txt']
-    # number of documents is 4392
-    # number of mentions is 203282
-    # number of stids is 21
-    # yet adding up the number of occurences of each stid, I get 231
     semantic_types = {stid: (index + 1)
                       for index, (stid, _) in
                       enumerate(corpus.stids.items())}
+    semantic_types[None] = 0
+    print(semantic_types)
     with open(fnames["--st21_fname"], 'wb') as f:
         pickle.dump(semantic_types, f)
 
