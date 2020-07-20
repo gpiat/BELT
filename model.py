@@ -30,9 +30,8 @@ class PositionalEncoding(nn.Module):
 
 class BELT(nn.Module):
 
-    def __init__(self, ntoken, n_classes,
-                 embed_size, nhead, nhid, nlayers,
-                 phrase_len, dropout=0.5, pad_token=1):
+    def __init__(self, ntoken, n_classes, embed_size, nhead,
+                 nhid, nlayers, phrase_len, dropout=0.5, pad_token=1):
         """Args:
             - <int> ntoken: vocabulary size
             - <int> n_classes: number of classes (such as UMLS concepts)

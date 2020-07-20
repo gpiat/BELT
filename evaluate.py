@@ -2,10 +2,12 @@ import constants as cst
 import pickle
 import torch
 
-from args_handler import get_evaluate_args
 from sys import argv
+
+from args_handler import get_evaluate_args
 from util import get_text_window
 from util import pad
+from util import set_targets
 
 
 def cuid_list_to_ranges(cuids):
@@ -122,19 +124,21 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, label_to_idx,
-            numericalizer, overlap):
+def predict(model, document, target_finder,
+            label_to_idx, numericalizer, overlap):
     """ Get predictions for a given model
         Args:
             model: The model doing the prediction
             document <MedMentionsDocument>: The document to annotate
                 (a label is predicted for each token in the document)
+            target_finder <func>: function which finds the targets for
+                a given length of text.
             label_to_idx <dict>: a lookup table associating the true
                 label of a token (str) to the index of its corresponding
                 index in predicted probability distribution.
             numericalizer: object that manages the translation from text
                 to numbers for the model to use
-            overlap [0-1]: amount of overlap between two text windows 
+            overlap [0-1]: amount of overlap between two text windows
                 preceding and following any given text window.
     """
     window_size = model.phrase_len
@@ -151,11 +155,12 @@ def predict(model, document, label_to_idx,
         # s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
         data = get_text_window(text, window_size, s_idx, e_idx)
 
-        target = torch.Tensor(
-            [label_to_idx[j]
-                for j in document.get_cuids(i, i + window_size)]
-        ).long().to(cst.device)
-        document_targets.extend(target.tolist())
+        target = target_finder(document, i, i + window_size, label_to_idx)
+        # target = torch.Tensor(
+        #     [label_to_idx[j]
+        #         for j in document.get_cuids(i, i + window_size)]
+        # ).long().to(cst.device)
+        document_targets.extend(target)  # .tolist())
 
         output = model(data.unsqueeze(0))
         # , target_words=torch.Tensor([text[i]]).to(cst.device))
@@ -202,7 +207,7 @@ def predict(model, document, label_to_idx,
     return document_tagged, document_targets, loss_increment
 
 
-def evaluate(model, corpus, label_to_idx, numericalizer,
+def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
              txt_window_overlap, compute_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
@@ -226,8 +231,9 @@ def evaluate(model, corpus, label_to_idx, numericalizer,
     with torch.no_grad():
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
-                predict(model, document, umls_cuid_to_idx,
-                        numericalizer, txt_window_overlap)
+                predict(model, document, target_finder,
+                        umls_cuid_to_idx, numericalizer,
+                        txt_window_overlap)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
@@ -253,6 +259,8 @@ if __name__ == '__main__':
     with open(args['--model_fname'], 'rb') as model_file:
         best_model = pickle.load(model_file)
 
+    target_finder = set_targets(args['--target_type'])
+
     if args['--write_pred']:
         umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx.items()}
         best_model.eval()  # Turn on the evaluation mode
@@ -260,8 +268,9 @@ if __name__ == '__main__':
             print("number of documents: ", test_corpus.n_documents)
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
-                    predict(best_model, document, umls_cuid_to_idx,
-                            numericalizer, args['--overlap'])
+                    predict(best_model, document, target_finder,
+                            umls_cuid_to_idx, numericalizer,
+                            args['--overlap'])
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
@@ -287,7 +296,7 @@ if __name__ == '__main__':
         (test_loss,
          (mention_precision, mention_recall, mention_f1),
          (doc_precision, doc_recall, doc_f1)) =\
-            evaluate(best_model, test_corpus,
+            evaluate(best_model, test_corpus, target_finder,
                      umls_cuid_to_idx, numericalizer,
                      args['--overlap'], compute_p_r_f1=True)
 
