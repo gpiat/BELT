@@ -225,6 +225,9 @@ if __name__ == '__main__':
                                       numericalizer,
                                       args['--overlap'],
                                       compute_p_r_f1=True)
+
+        # TODO: figure out why ever since masking was implemented, model
+        # never saves itself to file, implying val_loss never decreases.
         (val_loss,
          val_mention_p_r_f1,
          val_doc_p_r_f1) = evaluate(model,
