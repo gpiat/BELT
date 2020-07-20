@@ -7,6 +7,7 @@ import time
 import torch
 
 from args_handler import get_train_args
+from args_handler import select_optimizer
 
 from constants import criterion
 from constants import device
@@ -14,7 +15,6 @@ from constants import device
 from util import Numericalizer
 from util import get_text_window
 from util import pad
-from util import select_optimizer
 from util import set_targets
 from util import load_model
 
