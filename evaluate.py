@@ -11,7 +11,10 @@ from util import set_targets
 
 
 def cuid_list_to_ranges(cuids):
-    """ Args:
+    """ TODO: RENAME THIS FUNCTION
+              it no longer handles only CUIDs,
+              it also handles other class labels
+        Args:
             cuids (list<int>): list of CUIDs, likely with repetitions
         Returns:
             ranges (list<[int, int, int]>): list of ranges such that each
