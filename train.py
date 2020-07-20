@@ -170,10 +170,10 @@ def load_files(args):
     return train_corpus, target_indexing, dev_corpus
 
 
-def load_model(argv, args):
+def load_model(argv, args, n_classes):
     if '--resume' not in argv:
         model = BELT(ntoken=len(numericalizer.vocab),
-                     n_umls_concepts=len(umls_concepts),
+                     n_classes=n_classes,
                      embed_size=200, nhead=2, nhid=200,
                      nlayers=2, phrase_len=args['--window_size'],
                      dropout=0.2).to(device)
@@ -184,11 +184,18 @@ def load_model(argv, args):
     return model
 
 
-def UMLS_target_finder(document,
+def CUID_target_finder(document,
                        start_index,
                        end_index,
                        umls_concepts):
-    """ TODO: create access to umls_concepts
+    """ Finds the targets for a set of tokens when in "cuid" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
     """
     return [umls_concepts[cuid] for cuid in
             document.get_mention_ids(start_index,
@@ -200,7 +207,14 @@ def semtype_target_finder(document,
                           start_index,
                           end_index,
                           sem_types):
-    """ TODO: create and give access to sem_types
+    """ Finds the targets for a set of tokens when in "semantic type" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            sem_types (dict): lookup table to translate
+                STIDs to their corresponding indices in the
+                prediction vector for the token.
     """
     return [sem_types[stid] for stid in
             document.get_mention_ids(start_index,
@@ -212,15 +226,23 @@ def binary_target_finder(document,
                          start_index,
                          end_index,
                          umls_concepts):
-    targets = UMLS_target_finder(document, start_index,
+    """ Finds the targets for a set of tokens when in "bin" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    targets = CUID_target_finder(document, start_index,
                                  end_index, umls_concepts)
     return [min(i, 1) for i in targets]
 
 
 def set_targets(target_type):
     if target_type == "cuid":
-        # target cst.umls_fname
-        return UMLS_target_finder
+        return CUID_target_finder
     elif target_type == "semtype":
         return semtype_target_finder
     elif target_type == "bin":
@@ -231,13 +253,13 @@ if __name__ == '__main__':
     args = get_train_args(argv)
     target_finder = set_targets(args['--target_type'])
 
-    train_corpus, umls_concepts, dev_corpus = load_files(args)
+    train_corpus, target_indexing, dev_corpus = load_files(args)
 
     numericalizer = Numericalizer(train_corpus.vocab)
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
 
-    model = load_model(argv, args)
+    model = load_model(argv, args, len(target_indexing))
 
     print("running on: ", device)
 
@@ -272,7 +294,7 @@ if __name__ == '__main__':
          train_mention_p_r_f1,
          train_doc_p_r_f1) = evaluate(model,
                                       train_corpus,
-                                      umls_concepts,
+                                      target_indexing,
                                       numericalizer,
                                       args['--overlap'],
                                       compute_p_r_f1=True)
@@ -280,7 +302,7 @@ if __name__ == '__main__':
          val_mention_p_r_f1,
          val_doc_p_r_f1) = evaluate(model,
                                     dev_corpus,
-                                    umls_concepts,
+                                    target_indexing,
                                     numericalizer,
                                     args['--overlap'],
                                     compute_p_r_f1=True)
