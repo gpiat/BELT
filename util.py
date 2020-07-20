@@ -127,6 +127,10 @@ def load_model(argv, args, vocab_size, n_classes):
         with open(args['--writepath'] + args['--model_fname'],
                   'rb') as model_file:
             model = pickle.load(model_file)
+        # when transfer learning to a model with a different number
+        # of classes, we replace the last layer of the model.
+        if (model.decoder.out_features - 1) != n_classes:
+            model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
     return model
 
 
