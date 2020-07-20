@@ -2,10 +2,10 @@ import constants as cst
 import pickle
 import torch
 
+from args_handler import get_evaluate_args
 from sys import argv
 from util import get_text_window
 from util import pad
-from util import parse_args
 
 
 def cuid_list_to_ranges(cuids):
@@ -48,10 +48,10 @@ def get_mention_prec_rec_f1(predictions, targets):
             recall (float)
             f1 (float)
     """
-    tp = 0
+    tp = 0  # True Positives
     # tn = 0
-    fp = 0
-    fn = 0
+    fp = 0  # False Positives
+    fn = 0  # False Negatives
 
     for i in range(len(predictions)):  # == len(targets)
         predictions_i_ranges = [j for j in cuid_list_to_ranges(
@@ -67,25 +67,6 @@ def get_mention_prec_rec_f1(predictions, targets):
         for target in targets_i_ranges:
             if target not in predictions_i_ranges:
                 fn += 1
-
-    # for prediction, target in zip(chain(*predictions), chain(*targets)):
-    #     if target == prediction == 0:
-    #         tn += 1
-    #     elif target == prediction != 0:
-    #         tp += 1
-    #     elif target == 0 != prediction:
-    #         fp += 1
-    #     elif target != 0 == prediction:
-    #         fn += 1
-    #     elif 0 != target != prediction != 0:
-    #         fp += 1
-    #         fn += 1
-    #     else:
-    #         err_msg = ("No condition could determine whether the case is of"
-    #                    " a True Positive / True Negative / False Positive /"
-    #                    " False Negative. Prediction: " + str(prediction) +
-    #                    " Target: " + str(target))
-    #         raise ValueError(err_msg)
 
     try:
         precision = tp / (tp + fp)
@@ -141,8 +122,21 @@ def get_document_prec_rec_f1(predictions, targets):
     return precision, recall, f1
 
 
-def predict(model, document, umls_cuid_to_idx,
+def predict(model, document, label_to_idx,
             numericalizer, overlap):
+    """ Get predictions for a given model
+        Args:
+            model: The model doing the prediction
+            document <MedMentionsDocument>: The document to annotate
+                (a label is predicted for each token in the document)
+            label_to_idx <dict>: a lookup table associating the true
+                label of a token (str) to the index of its corresponding
+                index in predicted probability distribution.
+            numericalizer: object that manages the translation from text
+                to numbers for the model to use
+            overlap [0-1]: amount of overlap between two text windows 
+                preceding and following any given text window.
+    """
     window_size = model.phrase_len
     document_tagged = []
     document_targets = []
@@ -158,7 +152,7 @@ def predict(model, document, umls_cuid_to_idx,
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = torch.Tensor(
-            [umls_cuid_to_idx[j]
+            [label_to_idx[j]
                 for j in document.get_cuids(i, i + window_size)]
         ).long().to(cst.device)
         document_targets.extend(target.tolist())
@@ -208,15 +202,15 @@ def predict(model, document, umls_cuid_to_idx,
     return document_tagged, document_targets, loss_increment
 
 
-def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
+def evaluate(model, corpus, label_to_idx, numericalizer,
              txt_window_overlap, compute_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
             - (MedMentionsCorpus) corpus: the evaluation corpus
-            - (dict) umls_cuid_to_idx: a dict mapping UMLS CUIDs to
-                indices. Assumes all the CUIDs used in the corpus
-                are indexed in umls_cuid_to_idx.
+            - (dict) label_to_idx: a dict mapping token labels (UMLS
+                CUIDs, STIDs etc.) to indices. Assumes all the CUIDs
+                used in the corpus are indexed in label_to_idx.
             - (util.Numericalizer) numericalizer: converts words to
                 numbers for the purpose of input to the model. This
                 should be consistent with the numericalizer that was
@@ -248,21 +242,7 @@ def evaluate(model, corpus, umls_cuid_to_idx, numericalizer,
 
 
 if __name__ == '__main__':
-    args = {}
-    args['--test_fname'] = cst.test_fname
-    args['--model_fname'] = cst.model_fname
-    args['--umls_fname'] = cst.umls_fname
-    args['--numer_fname'] = cst.numer_fname
-    args['--predictions_fname'] = cst.wd + "predictions.out"
-    args['--targets_fname'] = cst.wd + "targets.out"
-    args['--write_pred'] = False
-    args['--skip_eval'] = False
-    args['--overlap'] = 0.2
-    # args['--window_size'] = 20
-
-    parse_args(argv, args)
-    args['--overlap'] = float(args['--overlap'])
-    # args['--window_size'] = int(args['--window_size'])
+    args = get_evaluate_args(argv)
 
     with open(args['--umls_fname'], 'rb') as umls_con_file:
         umls_cuid_to_idx = pickle.load(umls_con_file)

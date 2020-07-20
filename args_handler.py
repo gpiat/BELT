@@ -86,3 +86,25 @@ def get_corpus_init_args(argv):
     }
     parse_args(argv, args)
     return args
+
+
+def get_evaluate_args(argv):
+    args = {
+        '--test_fname': cst.test_fname,
+
+        '--model_fname': cst.model_fname,
+        '--numer_fname': cst.numer_fname,
+
+        '--umls_fname': cst.umls_fname,
+        "--st21_fname": cst.stid_fname,
+
+        '--predictions_fname': cst.wd + "predictions.out",
+        '--targets_fname': cst.wd + "targets.out",
+
+        '--write_pred': False,
+        '--skip_eval': False,
+        '--overlap': 0.2
+    }
+    parse_args(argv, args)
+    args['--overlap'] = float(args['--overlap'])
+    return args
