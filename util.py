@@ -116,7 +116,8 @@ def pad(text, window_size, overlap, batch_size=1):
     return out_text
 
 
-def load_model(argv, args, vocab_size, n_classes):
+def load_model(argv, args, vocab_size, target_indexing):
+    n_classes = len(target_indexing) if args['--target_type'] != "bin" else 2
     if '--resume' not in argv:
         model = BELT(ntoken=vocab_size,
                      n_classes=n_classes,

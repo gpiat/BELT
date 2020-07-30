@@ -188,7 +188,7 @@ if __name__ == '__main__':
     model = load_model(argv,
                        args,
                        vocab_size=len(numericalizer.vocab),
-                       n_classes=len(target_indexing))
+                       target_indexing=target_indexing)
 
     print("running on: ", device)
 
