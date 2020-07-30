@@ -200,6 +200,7 @@ def predict(model, document, target_finder,
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
         # TODO: delete try/except if no further issues
+        target = torch.Tensor(target).to(cst.device)
         try:
             loss_increment = (
                 len(data) * cst.criterion(output, target.unsqueeze(1)).item())
