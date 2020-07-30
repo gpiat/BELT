@@ -91,6 +91,10 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             if i % batch_size == 0:
                 optimizer.zero_grad()
                 output = model(data)
+                print("data: ", data.shape)
+                print("output: ", output.shape)
+                print("targets: ", targets.shape)
+
                 loss = criterion(output, targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)

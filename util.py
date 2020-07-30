@@ -191,6 +191,7 @@ def binary_target_finder(document,
 
 
 def set_targets(target_type):
+    print("target type: ", target_type)
     if target_type == "cuid":
         return CUID_target_finder
     elif target_type == "semtype":
