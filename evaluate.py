@@ -235,7 +235,7 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
                 predict(model, document, target_finder,
-                        umls_cuid_to_idx, numericalizer,
+                        label_to_idx, numericalizer,
                         txt_window_overlap)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
