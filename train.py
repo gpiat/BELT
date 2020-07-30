@@ -53,6 +53,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
+        print(targets.dtype)
         data = torch.zeros(batch_size,
                            window_size,
                            dtype=torch.long).to(device)
@@ -81,7 +82,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             target = target_finder(document, start_index,
                                    end_index, target_indexing)
             targets[i % batch_size] = torch.Tensor(target).to(device)
-
+            print(targets.dtype)
             # the fact that we do this processing only every batch_size
             # steps means that we don't do it if the remainder of the
             # text does not constitute a full batch. This is intentional,
@@ -91,9 +92,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             if i % batch_size == 0:
                 optimizer.zero_grad()
                 output = model(data)
-                print("data: ", data.shape)
-                print("output: ", output.shape)
-                print("targets: ", targets.shape)
 
                 loss = criterion(output, targets)
                 loss.backward()
