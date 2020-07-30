@@ -192,7 +192,7 @@ class BELT(nn.Module):
         # a tensor of shape [minibatch, C, window_size], yet we have
         # [window_size, minibatch, C]. Therefore we must permute dimensions
         # 3, 1 and 2.
-        output = output.permute(2, 0, 1)
+        output = output.permute(1, 2, 0)
         # output shape: [minibatch, C, window_size]
         return output
 
