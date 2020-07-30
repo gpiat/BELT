@@ -93,7 +93,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                 optimizer.zero_grad()
                 output = model(data)
 
-                loss = criterion(output, targets.long())
+                loss = criterion(output, targets.float())
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
                 optimizer.step()
