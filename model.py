@@ -172,23 +172,27 @@ class BELT(nn.Module):
         # src shape: torch.Size([minibatch, window_size])
         output = self.encoder(src) * math.sqrt(self.embed_size)
         # output shape: torch.Size([minibatch, window_size, embed_size])
+        # as stated in this post:
+        # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
+        # we should have torch.Size([window_size, minibatch, embed_size])
+        output = output.permute(1, 0, 2)
         output = self.pos_encoder(output)
 
-        mask = (src != self.pad_token).to(device).transpose(0, 1)
+        mask = (src != self.pad_token).to(device)
         output = self.transformer_encoder(output,
                                           src_key_padding_mask=mask)
         # self._generate_mask(src))
         # output shape: torch.Size([minibatch, window_size, embed_size])
 
         output = self.decoder(output)
-        # output shape: torch.Size([minibatch, window_size + 1, C])
+        # output shape: torch.Size([window_size + 1, minibatch, C])
         # with C the number of classes for the classification problem
 
         # To perform Softmax properly, torch.nn.CrossEntropyLoss expects
         # a tensor of shape [minibatch, C, window_size], yet we have
-        # [minibatch, window_size, C]. Therefore we must permute dimensions
-        # 1 and 2.
-        output = output.permute(0, 2, 1)
+        # [window_size, minibatch, C]. Therefore we must permute dimensions
+        # 3, 1 and 2.
+        output = output.permute(2, 0, 1)
         # output shape: [minibatch, C, window_size]
         return output
 
