@@ -203,10 +203,17 @@ def predict(model, document, target_finder,
         target = torch.Tensor(target).to(cst.device)
         try:
             loss_increment = (
-                len(data) * cst.criterion(output, target.unsqueeze(1)).item())
+                len(data) * cst.criterion(output,
+                                          target.unsqueeze(1).long()).item())
         except ValueError as e:
             print("output size: ", output.size())
             print("target size: ", target.size())
+            raise e
+        except RuntimeError as e:
+            print("target.dtype: ", target.dtype)
+            print("target: ", target)
+            print("output.dtype: ", output.dtype)
+            print("output: ", output)
             raise e
     return document_tagged, document_targets, loss_increment
 
