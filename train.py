@@ -201,6 +201,9 @@ if __name__ == '__main__':
 
     # start train
     best_val_loss = float("inf")
+    with open(args['--writepath'] +
+              args['--model_fname'], 'wb') as model_file:
+        pickle.dump(model, model_file)
     best_model = None
     if '--resume' not in argv:
         column_headers = [["time", "train loss", "validation loss",
