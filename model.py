@@ -172,8 +172,9 @@ class BELT(nn.Module):
     def forward(self, src):
         # src shape: torch.Size([minibatch, window_size])
         src = torch.t(src)
+        # src shape: torch.Size([window_size, minibatch])
         output = self.encoder(src) * math.sqrt(self.embed_size)
-        # output shape: torch.Size([minibatch, window_size, embed_size])
+        # output shape: torch.Size([window_size, minibatch, embed_size])
         # as stated in this post:
         # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
         # we should have torch.Size([window_size, minibatch, embed_size])
@@ -186,11 +187,11 @@ class BELT(nn.Module):
         # When the value is True, the corresponding value on the attention
         # layer will be filled with -inf.
         mask = (src == self.pad_token).to(device)
-        output = self.transformer_encoder(output,
-                                          src_key_padding_mask=mask)
         print(src.shape)
         print(output.shape)
         print(mask.shape)
+        output = self.transformer_encoder(output,
+                                          src_key_padding_mask=mask)
         sys.exit(0)
         # self._generate_mask(src))
         # output shape: torch.Size([minibatch, window_size, embed_size])
