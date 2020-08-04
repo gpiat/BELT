@@ -171,28 +171,32 @@ class BELT(nn.Module):
 
     def forward(self, src):
         # src shape: torch.Size([minibatch, window_size])
-        src = torch.t(src)
-        # src shape: torch.Size([window_size, minibatch])
-        output = self.encoder(src) * math.sqrt(self.embed_size)
-        # output shape: torch.Size([window_size, minibatch, embed_size])
-        # as stated in this post:
-        # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
-        # we should have torch.Size([window_size, minibatch, embed_size])
-        # output = output.permute(1, 0, 2)
-        output = self.pos_encoder(output)
 
         # From documentation:
         # key_padding_mask – if provided, specified padding elements in
         # the key will be ignored by the attention. This is an binary mask.
         # When the value is True, the corresponding value on the attention
         # layer will be filled with -inf.
+
+        # File "torch/nn/functional.py", line 3330,
+        #               in multi_head_attention_forward:
+        # assert key_padding_mask.size(0) == bsz
+        # so mask has to be shaped like src
         mask = (src == self.pad_token).to(device)
-        print(src.shape)
-        print(output.shape)
-        print(mask.shape)
+
+        # From the Embedding documentation examples:
+        # >>> # a batch of 2 samples of 4 indices each
+        # >>> input = torch.LongTensor([[1,2,4,5],[4,3,2,9]])
+        # so input shape should be (minibatch, window_size)
+        output = self.encoder(src) * math.sqrt(self.embed_size)
+        output = self.pos_encoder(output)
+        # output shape: torch.Size([minibatch, window_size, embed_size])
+        # as stated in this post:
+        # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
+        # we should have torch.Size([window_size, minibatch, embed_size])
+        output = output.permute(1, 0, 2)
         output = self.transformer_encoder(output,
                                           src_key_padding_mask=mask)
-        sys.exit(0)
         # self._generate_mask(src))
         # output shape: torch.Size([minibatch, window_size, embed_size])
 
