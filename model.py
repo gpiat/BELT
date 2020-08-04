@@ -1,6 +1,7 @@
 import math
 import torch
 import torch.nn as nn
+import sys
 
 from constants import device
 
@@ -186,6 +187,10 @@ class BELT(nn.Module):
         mask = (src == self.pad_token).to(device)
         output = self.transformer_encoder(output,
                                           src_key_padding_mask=mask)
+        print(src.shape)
+        print(output.shape)
+        print(mask.shape)
+        sys.exit(0)
         # self._generate_mask(src))
         # output shape: torch.Size([minibatch, window_size, embed_size])
 
