@@ -170,15 +170,20 @@ class BELT(nn.Module):
 
     def forward(self, src):
         # src shape: torch.Size([minibatch, window_size])
-        output = self.encoder(src) * math.sqrt(self.embed_size)
+        output = self.encoder(torch.t(src)) * math.sqrt(self.embed_size)
         # output shape: torch.Size([minibatch, window_size, embed_size])
         # as stated in this post:
         # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
         # we should have torch.Size([window_size, minibatch, embed_size])
-        output = output.permute(1, 0, 2)
+        # output = output.permute(1, 0, 2)
         output = self.pos_encoder(output)
 
-        mask = (src != self.pad_token).to(device)
+        # From documentation:
+        # key_padding_mask – if provided, specified padding elements in
+        # the key will be ignored by the attention. This is an binary mask.
+        # When the value is True, the corresponding value on the attention
+        # layer will be filled with -inf.
+        mask = (src == self.pad_token).to(device)
         output = self.transformer_encoder(output,
                                           src_key_padding_mask=mask)
         # self._generate_mask(src))
