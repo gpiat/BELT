@@ -171,7 +171,8 @@ class BELT(nn.Module):
 
     def forward(self, src):
         # src shape: torch.Size([minibatch, window_size])
-        output = self.encoder(torch.t(src)) * math.sqrt(self.embed_size)
+        src = torch.t(src)
+        output = self.encoder(src) * math.sqrt(self.embed_size)
         # output shape: torch.Size([minibatch, window_size, embed_size])
         # as stated in this post:
         # https://discuss.pytorch.org/t/nn-transformer-explaination/53175/7
