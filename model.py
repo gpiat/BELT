@@ -174,7 +174,7 @@ class BELT(nn.Module):
 
         # From documentation:
         # key_padding_mask – if provided, specified padding elements in
-        # the key will be ignored by the attention. This is an binary mask.
+        # the key will be ignored by the attention. This is a binary mask.
         # When the value is True, the corresponding value on the attention
         # layer will be filled with -inf.
 
@@ -202,12 +202,13 @@ class BELT(nn.Module):
 
         output = self.decoder(output)
         # output shape: torch.Size([window_size + 1, minibatch, C])
+        # TODO: wait, why window_size + 1?
         # with C the number of classes for the classification problem
 
         # To perform Softmax properly, torch.nn.CrossEntropyLoss expects
         # a tensor of shape [minibatch, C, window_size], yet we have
         # [window_size, minibatch, C]. Therefore we must permute dimensions
-        # 3, 1 and 2.
+        # 2, 3 and 1.
         output = output.permute(1, 2, 0)
         # output shape: [minibatch, C, window_size]
         return output

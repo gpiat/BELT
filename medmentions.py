@@ -51,7 +51,7 @@ def peek(file, n=1):
         object's current position in the file
         Args:
             - file: a text file
-            - n (int): how many lines aheahd should be read, defaults to 1
+            - n (int): how many lines ahead should be read, defaults to 1
         Return:
             - line: last line read
     """
@@ -149,7 +149,7 @@ class MedMentionsDocument:
         semtypeid = None
 
         if word_idx >= len(self.text):
-            return cuid
+            return None
 
         if self.split_by_char:
             s_e_i_copy = list(itertools.chain(*self.start_end_indices.copy()))
