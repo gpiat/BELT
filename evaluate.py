@@ -163,7 +163,6 @@ def predict(model, document, target_finder,
         #     [label_to_idx[j]
         #         for j in document.get_cuids(i, i + window_size)]
         # ).long().to(cst.device)
-        document_targets.extend(target)  # .tolist())
 
         output = model(data.unsqueeze(0))
         # , target_words=torch.Tensor([text[i]]).to(cst.device))
@@ -199,6 +198,7 @@ def predict(model, document, target_finder,
         # when dealing with argmax.
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
+        document_targets.extend([target[j] for j in range(start, stop)])
         # TODO: delete try/except if no further issues
         target = torch.Tensor(target).to(cst.device)
         try:
