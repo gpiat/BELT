@@ -155,17 +155,11 @@ def predict(model, document, target_finder,
     for i in range(0, len(text), increment):
         s_idx = max(min(i, len(text) - window_size), 0)
         e_idx = min(len(text), window_size + i)
-        # s_idx, e_idx = get_start_end_indices(i, len(text), window_size)
         data = get_text_window(text, window_size, s_idx, e_idx)
 
         target = target_finder(document, i, i + window_size, label_to_idx)
-        # target = torch.Tensor(
-        #     [label_to_idx[j]
-        #         for j in document.get_cuids(i, i + window_size)]
-        # ).long().to(cst.device)
 
         output = model(data.unsqueeze(0))
-        # , target_words=torch.Tensor([text[i]]).to(cst.device))
 
         # output shape: [minibatch=1, C, window_size]
         # with C the number of classes for the classification problem
@@ -186,13 +180,13 @@ def predict(model, document, target_finder,
         # the outer halves as such:     (D for Discard, K for Keep)
         # D D K K K K K K K K K K K K K K K K K K K K D D
         start = round((overlap / 4) * window_size)
-        stop = len(output) - start
+        stop = window_size - start
         # Special cases: the very beginning and end of the text do not
         # overlap with another window, therefore they cannot be discarded.
         if i == 0:
             start = 0
         if i + window_size == len(text):
-            stop = len(output)
+            stop = window_size
         # shape of output[j]: [C, 1], basically a vector.
         # the explicit 2nd dimension of the Tensor isn't a problem
         # when dealing with argmax.
@@ -201,20 +195,10 @@ def predict(model, document, target_finder,
         document_targets.extend([target[j] for j in range(start, stop)])
         # TODO: delete try/except if no further issues
         target = torch.Tensor(target).to(cst.device)
-        try:
-            loss_increment = (
-                len(data) * cst.criterion(output,
-                                          target.unsqueeze(1).long()).item())
-        except ValueError as e:
-            print("output size: ", output.size())
-            print("target size: ", target.size())
-            raise e
-        except RuntimeError as e:
-            print("target.dtype: ", target.dtype)
-            print("target: ", target)
-            print("output.dtype: ", output.dtype)
-            print("output: ", output)
-            raise e
+
+        loss_increment = (
+            len(data) * cst.criterion(output,
+                                      target.unsqueeze(1).long()).item())
     return document_tagged, document_targets, loss_increment
 
 
