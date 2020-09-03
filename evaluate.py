@@ -54,11 +54,11 @@ def get_mention_prec_rec_f1(predictions, targets):
             f1 (float)
     """
     tp = 0  # True Positives
-    # tn = 0
+    # tn = 0, not needed
     fp = 0  # False Positives
     fn = 0  # False Negatives
 
-    for i in range(len(predictions)):  # == len(targets)
+    for i in range(len(predictions)):  # is = to len(targets)
         predictions_i_ranges = [j for j in cuid_list_to_ranges(
             predictions[i]) if j[2] != 0]
         targets_i_ranges = [j for j in cuid_list_to_ranges(
@@ -193,7 +193,6 @@ def predict(model, document, target_finder,
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
         document_targets.extend([target[j] for j in range(start, stop)])
-        # TODO: delete try/except if no further issues
         target = torch.Tensor(target).to(cst.device)
 
         loss_increment = (

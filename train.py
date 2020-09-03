@@ -89,7 +89,9 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             # and the standard way of handling this case.
             # UPDATE: the case where the remainder of the text does not
             # constitute a full batch no longer occurs thanks to padding.
-            if i % batch_size == 0:
+            if (i + 1) % batch_size == 0:
+                print(i)
+                print(data)
                 optimizer.zero_grad()
                 output = model(data)
                 try:
