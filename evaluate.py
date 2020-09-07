@@ -1,9 +1,10 @@
-import constants as cst
+import numpy as np
 import pickle
 import torch
 
 from sys import argv
 
+import constants as cst
 from args_handler import get_evaluate_args
 from util import get_text_window
 from util import pad
@@ -33,6 +34,22 @@ def cuid_list_to_ranges(cuids):
         if cuids[i] != cuids[i - 1]:
             ranges.append([i, i, cuids[i]])
     return ranges
+
+
+def prec_rec_f1(tp, fp, fn):
+    try:
+        precision = tp / (tp + fp)
+    except ZeroDivisionError:
+        precision = 0
+    try:
+        recall = tp / (tp + fn)
+    except ZeroDivisionError:
+        recall = 0
+    try:
+        f1 = 2 * precision * recall / (precision + recall)
+    except ZeroDivisionError:
+        f1 = 0
+    return precision, recall, f1
 
 
 def get_mention_prec_rec_f1(predictions, targets):
@@ -73,19 +90,7 @@ def get_mention_prec_rec_f1(predictions, targets):
             if target not in predictions_i_ranges:
                 fn += 1
 
-    try:
-        precision = tp / (tp + fp)
-    except ZeroDivisionError:
-        precision = 0
-    try:
-        recall = tp / (tp + fn)
-    except ZeroDivisionError:
-        recall = 0
-    try:
-        f1 = 2 * precision * recall / (precision + recall)
-    except ZeroDivisionError:
-        f1 = 0
-    return precision, recall, f1
+    return prec_rec_f1(tp, fp, fn)
 
 
 def get_document_prec_rec_f1(predictions, targets):
@@ -112,19 +117,24 @@ def get_document_prec_rec_f1(predictions, targets):
         for target in set(doc_targets):
             if target not in predictions:
                 fn += 1
-    try:
-        precision = tp / (tp + fp)
-    except ZeroDivisionError:
-        precision = 0
-    try:
-        recall = tp / (tp + fn)
-    except ZeroDivisionError:
-        recall = 0
-    try:
-        f1 = 2 * precision * recall / (precision + recall)
-    except ZeroDivisionError:
-        f1 = 0
-    return precision, recall, f1
+    return prec_rec_f1(tp, fp, fn)
+
+
+def get_token_prec_rec_f1(predictions, targets):
+    tp = 0
+    fp = 0
+    fn = 0
+    tn = 0
+    predictions = torch.Tensor(predictions)
+    targets = torch.Tensor(targets)
+    tp = np.logical_and(predictions, targets).sum()
+    tn = np.logical_and(np.logical_not(predictions),
+                        np.logical_not(targets)).sum()
+    fp = np.logical_and(predictions, np.logical_not(targets)).sum()
+    fn = np.logical_and(np.logical_not(predictions), targets).sum()
+    # pcpt stands for proportion_correctly_predicted_tokens
+    pcpt = (tp + tn) / (tp + tn + fp + fn)
+    return *prec_rec_f1(tp, fp, fn), pcpt
 
 
 def predict(model, document, target_finder,
@@ -236,7 +246,8 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
     if compute_p_r_f1:
         return (loss,
                 get_mention_prec_rec_f1(text_tagged, text_targets),
-                get_document_prec_rec_f1(text_tagged, text_targets))
+                get_document_prec_rec_f1(text_tagged, text_targets),
+                get_token_prec_rec_f1(text_tagged, text_targets))
     else:
         return loss
 
@@ -291,15 +302,25 @@ if __name__ == '__main__':
         # start test
         (test_loss,
          (mention_precision, mention_recall, mention_f1),
-         (doc_precision, doc_recall, doc_f1)) =\
+         (doc_precision, doc_recall, doc_f1),
+         (tok_precision, tok_recall, tok_f1, tok_accuracy)) =\
             evaluate(best_model, test_corpus, target_finder,
                      umls_cuid_to_idx, numericalizer,
                      args['--overlap'], compute_p_r_f1=True)
 
         print('=' * 89)
         print('test loss {:5.2f}'.format(test_loss))
-        print('mention precision {:5.2f} | mention recall {:5.2f} |\
-     mention f1 {:8.2f}'.format(mention_precision, mention_recall, mention_f1))
-        print('document precision {:5.2f} | document recall {:5.2f} |\
-     document f1 {:8.2f}'.format(doc_precision, doc_recall, doc_f1))
+        print('mention precision {:5.2f} | mention recall {:5.2f} |'
+              'mention f1 {:8.2f}'.format(mention_precision,
+                                          mention_recall,
+                                          mention_f1))
+        print('document precision {:5.2f} | document recall {:5.2f} |'
+              'document f1 {:8.2f}'.format(doc_precision,
+                                           doc_recall,
+                                           doc_f1))
         print('=' * 89)
+        print('token precision {:5.2f} | token recall {:5.2f} |'
+              'token f1 {:8.2f} | token accuracy {:5.2f}'.format(tok_precision,
+                                                                 tok_recall,
+                                                                 tok_f1,
+                                                                 tok_accuracy))
