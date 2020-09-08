@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import torch
 
-from sys import argv
+from sys import argv, exit
 
 import constants as cst
 from args_handler import get_evaluate_args
@@ -127,6 +127,9 @@ def get_token_prec_rec_f1(predictions, targets):
     tn = 0
     predictions = torch.Tensor(predictions)
     targets = torch.Tensor(targets)
+    print(predictions)
+    print(targets)
+    exit(0)
     tp = np.logical_and(predictions, targets).sum()
     tn = np.logical_and(np.logical_not(predictions),
                         np.logical_not(targets)).sum()
