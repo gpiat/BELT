@@ -125,6 +125,8 @@ def get_token_prec_rec_f1(predictions, targets):
     fp = 0
     fn = 0
     tn = 0
+    print(predictions)
+    print(targets)
     predictions = torch.Tensor(predictions)
     targets = torch.Tensor(targets)
     print(predictions)
