@@ -217,11 +217,14 @@ def predict(model, document, target_finder,
 
 
 def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
-             txt_window_overlap, compute_p_r_f1=False):
+             txt_window_overlap, compute_mntn_p_r_f1=False,
+             compute_doc_p_r_f1=False, compute_tkn_p_r_f1=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
             - (MedMentionsCorpus) corpus: the evaluation corpus
+            - (func) target_finder: function that finds the prediction
+                targets for the given document and text window.
             - (dict) label_to_idx: a dict mapping token labels (UMLS
                 CUIDs, STIDs etc.) to indices. Assumes all the CUIDs
                 used in the corpus are indexed in label_to_idx.
@@ -229,9 +232,21 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
                 numbers for the purpose of input to the model. This
                 should be consistent with the numericalizer that was
                 used in training.
-            - (int) window_size: number of words that should be considered
-                at a time (defaults to 20). Should be consistent with
-                the length of phrases at training time.
+            - (float) txt_window_overlap[0-1]: amount of overlap between two
+                text windows preceding and following any given text window.
+            - (bool) compute_mntn_p_r_f1: if True, add precision, recall
+                and F1 to return value (computed at "mention" level, i.e.
+                True Positive => PMID, start index, end index and category
+                of mention detected accurately)
+            - (bool) compute_doc_p_r_f1: if True, add precision, recall
+                and F1 to return value (computed at "document" level, i.e.
+                True Positive => PMID, and category of mention detected
+                accurately)
+            - (bool) compute_tkn_p_r_f1: if True, add precision, recall
+                F1 and accuracy to return value (computed at "token" level,
+                i.e. True Positive => PMID, single token index, and category
+                of mention detected accurately)
+
     """
     model.eval()  # Turn on the evaluation mode
     total_loss = 0.
@@ -248,13 +263,14 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
             text_targets.append(document_targets)
 
     loss = total_loss / (corpus.n_documents - 1)
-    if compute_p_r_f1:
-        return (loss,
-                get_mention_prec_rec_f1(text_tagged, text_targets),
-                get_document_prec_rec_f1(text_tagged, text_targets),
-                get_token_prec_rec_f1(text_tagged, text_targets))
-    else:
-        return loss
+    return_val = (loss,)
+    if compute_mntn_p_r_f1:
+        return_val += (get_mention_prec_rec_f1(text_tagged, text_targets),)
+    if compute_doc_p_r_f1:
+        return_val += (get_document_prec_rec_f1(text_tagged, text_targets),)
+    if compute_tkn_p_r_f1:
+        return_val += (get_token_prec_rec_f1(text_tagged, text_targets),)
+    return return_val
 
 
 if __name__ == '__main__':
@@ -311,7 +327,8 @@ if __name__ == '__main__':
          (tok_precision, tok_recall, tok_f1, tok_accuracy)) =\
             evaluate(best_model, test_corpus, target_finder,
                      umls_cuid_to_idx, numericalizer,
-                     args['--overlap'], compute_p_r_f1=True)
+                     args['--overlap'], compute_mntn_p_r_f1=True,
+                     compute_doc_p_r_f1=True, compute_tkn_p_r_f1=True)
 
         print('=' * 89)
         print('test loss {:5.2f}'.format(test_loss))
