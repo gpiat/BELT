@@ -134,7 +134,7 @@ def get_token_prec_rec_f1(predictions, targets):
     fn = np.logical_and(np.logical_not(predictions), targets).sum()
     # pcpt stands for proportion_correctly_predicted_tokens
     pcpt = (tp + tn) / (tp + tn + fp + fn)
-    return *prec_rec_f1(tp, fp, fn), pcpt
+    return (*prec_rec_f1(tp, fp, fn), pcpt)
 
 
 def predict(model, document, target_finder,
