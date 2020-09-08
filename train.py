@@ -104,6 +104,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                     raise e
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                print("optimizer step")
                 optimizer.step()
 
                 total_loss += loss.item()
@@ -224,10 +225,12 @@ if __name__ == '__main__':
     for epoch in range(args['--epochs']):
         # TODO: figure out why this loop never stops
         epoch_start_time = time.time()
+        print("starting training epoch {}".format(epoch))
         train(model, train_corpus, target_finder,
               target_indexing, optimizer, scheduler,
               numericalizer, batch_size=args["--batch_size"],
               overlap=args['--overlap'], epoch=epoch)
+        print("end epoch {}".format(epoch))
 
         (train_loss,
          train_mention_p_r_f1,
@@ -280,5 +283,5 @@ if __name__ == '__main__':
             with open(args['--writepath'] +
                       args['--model_fname'], 'wb') as model_file:
                 pickle.dump(best_model, model_file)
-
+        print("scheduler step")
         scheduler.step()
