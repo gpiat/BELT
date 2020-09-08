@@ -125,13 +125,13 @@ def get_token_prec_rec_f1(predictions, targets):
     fp = 0
     fn = 0
     tn = 0
-    print(predictions)
-    print(targets)
+    print("getting token stats")
+    print("predictions:\n", predictions)
+    print("targets:\n", targets)
     predictions = torch.Tensor(predictions)
     targets = torch.Tensor(targets)
-    print(predictions)
-    print(targets)
-    exit(0)
+    print("predictions as tensor:\n", predictions)
+    print("targets as tensor:\n", targets)
     tp = np.logical_and(predictions, targets).sum()
     tn = np.logical_and(np.logical_not(predictions),
                         np.logical_not(targets)).sum()
@@ -254,6 +254,7 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
     text_targets = []
     with torch.no_grad():
         for document in corpus.documents():
+            print("evaluating document {}".format(document.pmid))
             document_tagged, document_targets, loss_increment =\
                 predict(model, document, target_finder,
                         label_to_idx, numericalizer,
@@ -261,6 +262,9 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
+
+    print("text tagged:\n", text_tagged)
+    print("text targets:\n", text_targets)
 
     loss = total_loss / (corpus.n_documents - 1)
     return_val = (loss,)
