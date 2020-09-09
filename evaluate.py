@@ -205,6 +205,9 @@ def predict(model, document, target_finder,
         # shape of output[j]: [C, 1], basically a vector.
         # the explicit 2nd dimension of the Tensor isn't a problem
         # when dealing with argmax.
+        print("output:\n")
+        print(output)
+        print("start: {}, stop: {}".format(start, stop))
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
         document_targets.extend([target[j] for j in range(start, stop)])
