@@ -76,9 +76,30 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             # when getting to the end of the text.
             # UPDATE: what am I talking about? Why would the text segment be
             # processed multiple times??
+            tw = None
 
-            data[i % batch_size] = get_text_window(
-                text, window_size, start_index, end_index)
+            def debug():
+                print("data shape: {}".format(data.shape))
+                print("text window shape: {}".format(tw.shape))
+                print("window number {}, in position {} of batch with "
+                      "size {}".format(i, i % batch_size, batch_size))
+                print("expected window size: {}, start index: {},"
+                      " end index: {}, got window_size: {}".format(
+                          window_size, start_index, end_index,
+                          end_index - start_index))
+                print("text window:")
+                print(tw)
+            try:
+                tw = get_text_window(text, window_size, start_index, end_index)
+            except RuntimeError as e:
+                debug()
+                raise e
+
+            try:
+                data[i % batch_size] = tw
+            except RuntimeError as e:
+                debug()
+                raise e
 
             target = target_finder(document, start_index,
                                    end_index, target_indexing)
