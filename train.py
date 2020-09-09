@@ -70,7 +70,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         # the use of `round` is a response to floating point errors.
         # Without it, `increment` might be something like 8.9999 in some cases.
         for i in range(0, len(text)):
-            start_index = max(min(i, len(text) - window_size), 0)
+            start_index = max(min(i * increment, len(text) - window_size), 0)
             end_index = min(len(text), window_size + i * increment)
             # TODO: prevent processing the same text segment multiple times
             # when getting to the end of the text.
