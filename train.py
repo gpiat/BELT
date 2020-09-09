@@ -46,6 +46,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
     total_loss = 0.
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):
+        print("doc index: {}".format(doc_idx))
         text = numericalizer.numericalize_text(pad(document.text,
                                                    window_size,
                                                    overlap,
@@ -89,8 +90,9 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             # and the standard way of handling this case.
             # UPDATE: the case where the remainder of the text does not
             # constitute a full batch no longer occurs thanks to padding.
-            print(i)
-            print((i + 1) % batch_size)
+            print("current index in text: {}".format(i))
+            print("remaining text windows to complete batch: {}".format(
+                (i + 1) % batch_size))
             if (i + 1) % batch_size == 0:
                 print(data)
                 optimizer.zero_grad()
