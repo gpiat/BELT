@@ -46,7 +46,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
     total_loss = 0.
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):
-        print("doc index: {}".format(doc_idx))
+        # print("doc index: {}".format(doc_idx))
         text = numericalizer.numericalize_text(pad(document.text,
                                                    window_size,
                                                    overlap,
@@ -69,9 +69,9 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         # increment = 9
         # the use of `round` is a response to floating point errors.
         # Without it, `increment` might be something like 8.9999 in some cases.
-        for i in range(0, len(text), increment):
+        for i in range(0, len(text)):
             start_index = max(min(i, len(text) - window_size), 0)
-            end_index = min(len(text), window_size + i)
+            end_index = min(len(text), window_size + i * increment)
             # TODO: prevent processing the same text segment multiple times
             # when getting to the end of the text.
             # UPDATE: what am I talking about? Why would the text segment be
@@ -90,9 +90,9 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             # and the standard way of handling this case.
             # UPDATE: the case where the remainder of the text does not
             # constitute a full batch no longer occurs thanks to padding.
-            print("current index in text: {}".format(i))
-            print("remaining text windows to complete batch: {}".format(
-                (i + 1) % batch_size))
+            # print("current index in text: {}".format(i))
+            # print("remaining text windows to complete batch: {}".format(
+            #     (i + 1) % batch_size))
             if (i + 1) % batch_size == 0:
                 print(data)
                 optimizer.zero_grad()
@@ -228,12 +228,12 @@ if __name__ == '__main__':
     for epoch in range(args['--epochs']):
         # TODO: figure out why this loop never stops
         epoch_start_time = time.time()
-        print("starting training epoch {}".format(epoch))
+        # print("starting training epoch {}".format(epoch))
         train(model, train_corpus, target_finder,
               target_indexing, optimizer, scheduler,
               numericalizer, batch_size=args["--batch_size"],
               overlap=args['--overlap'], epoch=epoch)
-        print("end epoch {}".format(epoch))
+        # print("end epoch {}".format(epoch))
 
         (train_loss,
          train_mention_p_r_f1,
