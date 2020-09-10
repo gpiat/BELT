@@ -2,7 +2,7 @@ import numpy as np
 import pickle
 import torch
 
-from sys import argv, exit
+from sys import argv
 
 import constants as cst
 from args_handler import get_evaluate_args
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     with open(args['--test_fname'], 'rb') as test_file:
         test_corpus = pickle.load(test_file)
     with open(args['--model_fname'], 'rb') as model_file:
-        best_model = pickle.load(model_file)
+        best_model = torch.load(model_file)
 
     target_finder = set_targets(args['--target_type'])
 
