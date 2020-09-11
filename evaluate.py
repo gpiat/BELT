@@ -125,15 +125,20 @@ def get_token_prec_rec_f1(predictions, targets):
     fp = 0
     fn = 0
     tn = 0
-    predictions = torch.Tensor(predictions)
-    targets = torch.Tensor(targets)
-    print("predictions as tensor:\n", predictions)
-    print("targets as tensor:\n", targets)
-    tp = np.logical_and(predictions, targets).sum()
-    tn = np.logical_and(np.logical_not(predictions),
-                        np.logical_not(targets)).sum()
-    fp = np.logical_and(predictions, np.logical_not(targets)).sum()
-    fn = np.logical_and(np.logical_not(predictions), targets).sum()
+    # len(predictions) = len(targets) = number of documents
+    # we must handle each sublist individually since they
+    # are of size <number of tokens in document>, meaning
+    # they have very different sizes.
+    for i in range(len(predictions)):
+        pred_i = torch.Tensor(predictions[i])
+        target_i = torch.Tensor(targets[i])
+        print("predictions as tensor:\n", pred_i)
+        print("targets as tensor:\n", target_i)
+        tp += np.logical_and(pred_i, target_i).sum()
+        tn += np.logical_and(np.logical_not(pred_i),
+                             np.logical_not(target_i)).sum()
+        fp += np.logical_and(pred_i, np.logical_not(target_i)).sum()
+        fn += np.logical_and(np.logical_not(pred_i), target_i).sum()
     # pcpt stands for proportion_correctly_predicted_tokens
     pcpt = (tp + tn) / (tp + tn + fp + fn)
     return (*prec_rec_f1(tp, fp, fn), pcpt)
