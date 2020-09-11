@@ -137,6 +137,12 @@ def get_token_prec_rec_f1(predictions, targets):
                              np.logical_not(target_i)).sum()
         fp += np.logical_and(pred_i, np.logical_not(target_i)).sum()
         fn += np.logical_and(np.logical_not(pred_i), target_i).sum()
+    # tp fp fn and tn are now single element tensors,
+    # we must cast them back to ints
+    tp = int(tp)
+    fp = int(fp)
+    fn = int(fn)
+    tn = int(tn)
     # pcpt stands for proportion_correctly_predicted_tokens
     pcpt = (tp + tn) / (tp + tn + fp + fn)
     return (*prec_rec_f1(tp, fp, fn), pcpt)
