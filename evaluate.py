@@ -132,8 +132,6 @@ def get_token_prec_rec_f1(predictions, targets):
     for i in range(len(predictions)):
         pred_i = torch.Tensor(predictions[i])
         target_i = torch.Tensor(targets[i])
-        print("predictions as tensor:\n", pred_i)
-        print("targets as tensor:\n", target_i)
         tp += np.logical_and(pred_i, target_i).sum()
         tn += np.logical_and(np.logical_not(pred_i),
                              np.logical_not(target_i)).sum()
