@@ -104,6 +104,7 @@ def pickle_corpora(fnames):
     val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']],
                                    split_by_char=fnames['--split_by_char'])
     test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']],
+                                    auto_looping=True,
                                     split_by_char=fnames['--split_by_char'])
 
     with open(fnames['--train_fname'], 'wb') as train_file:

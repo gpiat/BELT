@@ -125,9 +125,6 @@ def get_token_prec_rec_f1(predictions, targets):
     fp = 0
     fn = 0
     tn = 0
-    print("getting token stats")
-    print("predictions:\n", predictions)
-    print("targets:\n", targets)
     predictions = torch.Tensor(predictions)
     targets = torch.Tensor(targets)
     print("predictions as tensor:\n", predictions)
@@ -205,14 +202,9 @@ def predict(model, document, target_finder,
         # shape of output[j]: [C, 1], basically a vector.
         # the explicit 2nd dimension of the Tensor isn't a problem
         # when dealing with argmax.
-        # print("output shape:")
-        # print(output.shape)
-        # print("start: {}, stop: {}".format(start, stop))
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
-        # print("document tagged length: {}".format(len(document_tagged)))
         document_targets.extend([target[j] for j in range(start, stop)])
-        # print("document targets length: {}".format(len(document_targets)))
         target = torch.Tensor(target).to(cst.device)
 
         loss_increment = (
@@ -259,21 +251,13 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
     text_targets = []
     with torch.no_grad():
         for document in corpus.documents():
-            print("evaluating document {}".format(document.pmid))
             document_tagged, document_targets, loss_increment =\
                 predict(model, document, target_finder,
                         label_to_idx, numericalizer,
                         txt_window_overlap)
             total_loss += loss_increment
-            print("document tagged:")
-            print(document_tagged)
-            print("document targets:")
-            print(document_targets)
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
-
-    print("text tagged:\n", text_tagged)
-    print("text targets:\n", text_targets)
 
     loss = total_loss / (corpus.n_documents - 1)
     return_val = (loss,)
