@@ -1,5 +1,8 @@
-import string
 import itertools
+import string
+
+from difflib import ndiff as diff
+from transformers import BertTokenizer
 
 
 def text_preprocess(text):
@@ -95,40 +98,35 @@ class MedMentionsDocument:
     """
 
     def __init__(self, title, abstract, umls_mentions,
-                 split_by_char=False):
-        # , no_punct=False):
+                 tokenization='char'):
         """ Args:
                 - (str) title: raw title line of text
                 - (str) abstract: raw abstract line of text
                 - (list<str>) umls_mentions: list of raw lines
                     of text containing the UMLS entity mentions.
-                - no_punct (bool): Defaults to False. If True,
-                    removes punctuation from the `text` attribute.
-                    This will cause training to fail as UMLS mentions
-                    will no longer align with the text.
+                - tokenization (str): can be 'char', 'naive', or 'wordpiece'.
+                    Determines how text is tokenized.
         """
         self.pmid, self.title = text_preprocess(title)
-        self.split_by_char = split_by_char
+        self.tokenization = tokenization.lower()
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
         self.raw_text = self.title + '\n' + self.abstract
 
-        # self.no_punct = no_punct
-        # if no_punct:
-        #     title_nopunct = self.title.translate(
-        #         str.maketrans('', '', string.punctuation))
-        #     abs_nopunct = self.abstract.translate(
-        #         str.maketrans('', '', string.punctuation))
-        #     # can't split raw_text because of missing
-        #     # space between title and abstract
-        #     self.text = [*title_nopunct.split(), *abs_nopunct.split()]
-        # else:
-        #     self.text = [*self.title.split(), *self.abstract.split()]
-        if split_by_char:
+        if self.tokenization == 'char':
             self.text = list(self.raw_text)
-        else:
+        elif self.tokenization == 'naive':
             self.text = self.raw_text.split()
+        elif self.tokenization == 'wp' or self.tokenization == 'wordpiece':
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.tokenizer.tokenize(self.raw_text)
+        else:
+            raise ValueError("Could not parse tokenization method.\n"
+                             "Accepted methods are:\n"
+                             "- 'char' for character-level tokenization\n"
+                             "- 'naive' for naive whitespace tokenization\n"
+                             "- 'wp' / 'wordpiece' for WordPiece tokenization")
 
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
@@ -138,68 +136,113 @@ class MedMentionsDocument:
         self.start_end_indices = list(itertools.chain(
             [(e.start_idx - 1, e.stop_idx - 1) for e in self.umls_entities]))
 
-    def get_mention_id(self, word_idx, mode="cuid"):
+    def get_mention_id(self, token_idx, mode="cuid"):
         """ Returns the CUID of a word given its index (returns
             None if not part of a UMLS concept mention)
             Args:
-                word_idx (int): index of the word in self.text
+                token_idx (int): index of the word in self.text
         """
 
         cuid = None
         semtypeid = None
 
-        if word_idx >= len(self.text):
+        if token_idx >= len(self.text):
             return None
 
-        if self.split_by_char:
-            s_e_i_copy = list(itertools.chain(*self.start_end_indices.copy()))
-            s_e_i_copy.append(word_idx)
-            s_e_i_copy.sort()
-            # if the character is in a mention, its index will be between
-            # a start and a stop index. Since they alternate, all start
-            # indices are at even positions within the list, and all stop
-            # indices will be at odd positions. Therefore, the index of a
-            # character that is in a mention will be put at an odd position
-            # in the list. Conversely, a character that is not in a mention
-            # will be at an even position. Since index() returns the first
-            # occurence, if the character examined is equal to the start
-            # index, it will be found at an even position, therefore the
-            # start index of the mention has to be exclusive. The reverse
-            # is true for the stop index of the mention.
-            word_idx_idx = s_e_i_copy.index(word_idx)
-            is_in_mention = bool(word_idx_idx % 2)
-            if is_in_mention:
-                mention = self.umls_entities[int(word_idx_idx / 2)]
-                cuid = mention.concept_ID
-                semtypeid = mention.semantic_type_ID
-        else:
+        if self.tokenization == 'char':
+            char_idx = token_idx
+            # s_e_i_copy = list(itertools.chain(
+            #                  *self.start_end_indices.copy()))
+            # s_e_i_copy.append(token_idx)
+            # s_e_i_copy.sort()
+            # # if the character is in a mention, its index will be between
+            # # a start and a stop index. Since they alternate, all start
+            # # indices are at even positions within the list, and all stop
+            # # indices will be at odd positions. Therefore, the index of a
+            # # character that is in a mention will be put at an odd position
+            # # in the list. Conversely, a character that is not in a mention
+            # # will be at an even position. Since index() returns the first
+            # # occurence, if the character examined is equal to the start
+            # # index, it will be found at an even position, therefore the
+            # # start index of the mention has to be exclusive. The reverse
+            # # is true for the stop index of the mention.
+            # token_idx_idx = s_e_i_copy.index(token_idx)
+            # is_in_mention = bool(token_idx_idx % 2)
+            # if is_in_mention:
+            #     mention = self.umls_entities[int(token_idx_idx / 2)]
+            #     cuid = mention.concept_ID
+            #     semtypeid = mention.semantic_type_ID
+        elif self.tokenization == 'naive':
             # The idea here is to find the CUID of a word despite only
             # having the CUID of spans of characters. We therefore find
             # the CUID of a character of the word. Since we have only the
             # index of the word (and not its characters), we have to apply
             # a conversion by summing the lengths of the words that come
             # before it.
-            char_idx = sum([len(word) for word in self.text[:(word_idx + 1)]])
+            char_idx = sum([len(word) for word in self.text[:(token_idx + 1)]])
             # can't forget to add the spaces
-            # one between each word = (word_idx + 1) - 1
+            # one between each word = (token_idx + 1) - 1
             # +1 because lists start at 0; -1 because one space between
             # each word for some reason this selects the space after the word,
             # so I'm substracting 1 but I can't figure out why
-            char_idx += word_idx - 1
+            char_idx += token_idx - 1
             # char_idx is the index of the last character. Because of the way
             # strings are  split, this can point to a punctuation mark.
             # we subtract half the word length to get a character approximately
             # in the middle of the word.
-            char_idx -= len(self.text[word_idx]) / 2
+            char_idx -= len(self.text[token_idx]) / 2
 
-            for mention in self.umls_entities:
-                if mention.start_idx <= char_idx < mention.stop_idx:
-                    cuid = mention.concept_ID
-                    semtypeid = mention.semantic_type_ID
-                    break  # it may theoretically be possible that one word is
-                    # part of several UMLS mentions but that case would be
-                    # impractical to handle and likely wouldn't matter at
-                    # scale.
+        else:
+            # TODO
+            # the difficulty here is that wordpiece adds characters that
+            # need to be accounted for when resolving character indices
+
+            # Given that the tokenized text contains artifacts such as `##`
+            # markers to denote suffixes, the idea is to let the tokenizer
+            # figure out what the text before the current token was like.
+            # We can then count characters to find the beginning and end
+            # indices of the characters of the current token.
+
+            # However, it's not as simple as that because the decoded text
+            # is not exactly the same as the original text.
+            # For starters, `[CLS] ` and ` [SEP]` are added at the beginning
+            # and end of the decoded text respectively. Removing these is
+            # simple enough.
+            #    (In fact, there may or may not be a space after `[CLS]`
+            #    depending on whether the first token is a suffix or not, but
+            #    this shouldn't come into consideration since the text won't
+            #    start with a suffix)
+            # Furthermore, when parsing punctuation, some extra whitespaces
+            # may be introduced. To remove these, we use difflib to identify
+            # these inaccuracies w.r.t. the original text.
+
+            # Getting the text before the token we want.
+            # The [6:-6] is to remove the `[CLS] ` and ` [SEP]` markers.
+            # Here we choose to include the token of interest because it
+            # automatically handles the problem of knowing whethter to
+            # account for a space before the token of interest.
+            text_before = self.tokenizer.decode(
+                self.tokenizer.encode(self.text[:token_idx + 1]))[6:-6]
+
+            text_before = ''.join([c[-1]
+                                   for c in diff(self.raw_text, text_before)
+                                   if c[0] != '+'])
+
+            # char_idx is the index of the last character of the token.
+            # We assume there are no mentions that stop in the middle of a
+            # token, meaning that taking any character of the mention is
+            # fine.
+            char_idx = len(text_before) - 1
+
+        for mention in self.umls_entities:
+            if mention.start_idx <= char_idx < mention.stop_idx:
+                cuid = mention.concept_ID
+                semtypeid = mention.semantic_type_ID
+                break  # it may theoretically be possible that one word is
+                # part of several UMLS mentions but that case would be
+                # impractical to handle and likely wouldn't matter at
+                # scale.
+
         if mode == "cuid":
             return cuid
         elif mode == "semtype":
@@ -244,7 +287,7 @@ class MedMentionsCorpus:
     """
 
     def __init__(self, fnames, auto_looping=False,
-                 split_by_char=False):
+                 tokenization='char'):
         # , no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
@@ -260,7 +303,7 @@ class MedMentionsCorpus:
         self._currentfile = 0
         self._looping = auto_looping
         # self.no_punct = no_punct
-        self.split_by_char = split_by_char
+        self.tokenization = tokenization
         (self.n_documents, self.cuids, self.stids,
          self.vocab) = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
@@ -320,7 +363,7 @@ class MedMentionsCorpus:
 
                 yield MedMentionsDocument(title, abstract,
                                           umls_entities,
-                                          self.split_by_char)
+                                          self.tokenization)
             f.close()
 
             self._currentfile += 1
