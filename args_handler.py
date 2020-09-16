@@ -3,6 +3,8 @@ import sys
 import torch
 import torch_optimizer
 
+from util import TokenType
+
 
 def parse_args(argv, args):
     """ parses a list of arguments into a dictionary
@@ -38,6 +40,7 @@ def get_train_args(argv):
         '--val_fname': cst.val_fname,
         '--model_fname': cst.model_fname,
         '--writepath': cst.wd,
+        '--resume': False,
         '--epochs': 10,
         '--optim': "SGD",
         '--lr': 5,
@@ -85,9 +88,13 @@ def get_corpus_init_args(argv):
 
         # UMLS_concepts_init specific
         "--umls_fname": cst.umls_fname,
-        "--st21_fname": cst.stid_fname
+        "--st21_fname": cst.stid_fname,
+
+        '--tokenization': TokenType.CHAR
     }
     parse_args(argv, args)
+    if type(args['--tokenization']) != TokenType:
+        args['--tokenization'] = TokenType.form_str(args['--tokenization'])
     return args
 
 
