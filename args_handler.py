@@ -83,14 +83,11 @@ def get_corpus_init_args(argv):
         "--train_fname": cst.train_fname,
         "--val_fname": cst.val_fname,
         "--test_fname": cst.test_fname,
-        "--nopunct": False,
-        "--split_by_char": False,
+        '--tokenization': TokenType.CHAR,
 
         # UMLS_concepts_init specific
         "--umls_fname": cst.umls_fname,
-        "--st21_fname": cst.stid_fname,
-
-        '--tokenization': TokenType.CHAR
+        "--st21_fname": cst.stid_fname
     }
     parse_args(argv, args)
     if type(args['--tokenization']) != TokenType:

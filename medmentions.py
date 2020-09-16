@@ -286,16 +286,11 @@ class MedMentionsCorpus:
 
     def __init__(self, fnames, auto_looping=False,
                  tokenization=TokenType.CHAR):
-        # , no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
                 - auto_looping (bool): whether retrieving documents should
                     automatically loop or not
         """
-        # - no_punct (bool): Defaults to False. If True, removes
-        #     punctuation from each document's `text` attribute.
-        #     This will cause training to fail as UMLS mentions
-        #     will no longer align with the text.
 
         self._filenames = fnames
         self._currentfile = 0
