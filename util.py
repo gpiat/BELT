@@ -2,23 +2,65 @@ import pickle
 import torch
 
 from constants import device
+from enum import Enum
 from model import BELT
 
 
+class TokenType(Enum):
+    NAIVE = 0
+    WORD = 0
+    CHARACTER = 1
+    CHAR = 1
+    WORDPIECE = 2
+    WP = 2
+
+    @classmethod
+    def form_str(cls, s):
+        s = s.lower()
+        try:
+            return cls(int(s))
+        except ValueError:
+            pass
+        if s in ['naive', 'word']:
+            return cls.NAIVE
+        elif s in ['char', 'character']:
+            return cls.CHAR
+        elif s in ['wordpiece', 'wp']:
+            return cls.WP
+        else:
+            raise ValueError("{} not recognized as a token type."
+                             " Available token types are 'naive',"
+                             " 'char' and 'wordpiece'.".format(s))
+
+
 class Numericalizer:
-    def __init__(self, vocab):
-        self.vocab = {word: (number + 2) for number, word in enumerate(vocab)}
-        self.vocab['<unk>'] = 0
-        self.vocab['<pad>'] = 1
+    def __init__(self, corpus):
+        self.tokenization = corpus.tokenization
+        if corpus.tokenization == TokenType.WP:
+            self.tokenizer = corpus.tokenizer
+            self.vocab = self.tokenizer.vocab
+            self.pad_token = self.tokenizer.pad_token
+            self.unk_token = self.tokenizer.unk_token
+            # self.mask_token = self.tokenizer.mask_token
+        else:
+            self.vocab = {word: (number + 2)
+                          for number, word in enumerate(corpus.vocab)}
+            self.unk_token = '<unk>'
+            self.pad_token = '<pad>'
+            self.vocab[self.unk_token] = 0
+            self.vocab[self.pad_token] = 1
 
     def numericalize_text(self, text):
         """ maps a list of tokens to a unique list of integers"""
+        if self.tokenization == TokenType.WP:
+            return self.tokenizer.encode(text)
+        # else:
         numericalized = []
         for token in text:
             try:
                 numericalized.append(self.vocab[token])
             except KeyError:
-                numericalized.append(self.vocab['<unk>'])
+                numericalized.append(self.vocab[self.unk_token])
         return numericalized
 
 
@@ -28,12 +70,13 @@ class FastTextVectorizer(Numericalizer):
         pass
 
 
-def get_text_window(text, window_size, start_index, end_index):
+def get_text_window(text, window_size, start_index, end_index, pad_token=1):
     """
     """
     # creating a zero-filled vector of the right size in
     # case the entire document is smaller than the vector
     data = torch.zeros(window_size, dtype=torch.long).to(device)
+    data.fill_(pad_token)
     data[0:end_index - start_index] =\
         torch.Tensor(text[start_index:end_index]).to(device)
     return data
@@ -65,7 +108,7 @@ def get_start_end_indices(i, text_len, window_size):
     return start_index, end_index
 
 
-def pad(text, window_size, overlap, batch_size=1):
+def pad(text, window_size, overlap, batch_size=1, pad_token='<pad>'):
     """ Pads text with iterations of the '<pad>' token so that a whole number
         of batches of a whole number of overlapping windows fits in the length
         of the text.
@@ -105,26 +148,28 @@ def pad(text, window_size, overlap, batch_size=1):
             # window after accounting for excess and overlap
             pad_amount = window_size - overlap - excess
 
-    out_text += ['<pad>'] * pad_amount
+    out_text += [pad_token] * pad_amount
     # Now we're actually not done. We need a to be a multiple of
     # batch_size.
     a = len(out_text) // (window_size - overlap)
     incomplete_batch_size = a % batch_size
     if incomplete_batch_size > 0:
         missing_windows = batch_size - incomplete_batch_size
-        out_text += ['<pad>'] * (window_size - overlap) * missing_windows
+        out_text += [pad_token] * (window_size - overlap) * missing_windows
     return out_text
 
 
-def load_model(argv, args, vocab_size, target_indexing):
+def load_model(args, target_indexing, vocab_size=0):
+    """ Loads or creates a model for training.
+        Args:
+            args (dict): a dict of arguments processed from the command line
+            target_indexing (dict): a lookup table for determining class names
+            vocab_size (int): number of unique tokens in the corpus. Optional
+                because only useful if a new model is being created.
+
+    """
     n_classes = len(target_indexing) if args['--target_type'] != "bin" else 1
-    if '--resume' not in argv:
-        model = BELT(ntoken=vocab_size,
-                     n_classes=n_classes,
-                     embed_size=200, nhead=2, nhid=200,
-                     nlayers=2, phrase_len=args['--window_size'],
-                     dropout=0.2).to(device)
-    else:
+    if args['--resume']:
         with open(args['--writepath'] + args['--model_fname'],
                   'rb') as model_file:
             model = pickle.load(model_file)
@@ -132,6 +177,12 @@ def load_model(argv, args, vocab_size, target_indexing):
         # of classes, we replace the last layer of the model.
         if (model.decoder.out_features - 1) != n_classes:
             model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
+    else:
+        model = BELT(ntoken=vocab_size,
+                     n_classes=n_classes,
+                     embed_size=200, nhead=2, nhid=200,
+                     nlayers=2, phrase_len=args['--window_size'],
+                     dropout=0.2).to(device)
     return model
 
 
