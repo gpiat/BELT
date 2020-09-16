@@ -47,10 +47,10 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):
         # print("doc index: {}".format(doc_idx))
-        text = numericalizer.numericalize_text(pad(document.text,
-                                                   window_size,
-                                                   overlap,
-                                                   batch_size))
+        padded_text = pad(document.text, window_size, overlap,
+                          batch_size=batch_size,
+                          pad_token=numericalizer.pad_token)
+        text = numericalizer.numericalize_text(padded_text)
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
@@ -87,7 +87,8 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                           window_size, start_index, end_index,
                           end_index - start_index))
             try:
-                tw = get_text_window(text, window_size, start_index, end_index)
+                tw = get_text_window(text, window_size, start_index, end_index,
+                                     pad_token=numericalizer.pad_token)
             except RuntimeError as e:
                 debug()
                 raise e
@@ -135,6 +136,9 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                 targets = torch.zeros(batch_size,
                                       window_size,
                                       dtype=torch.long).to(device)
+                data = torch.zeros(batch_size,
+                                   window_size,
+                                   dtype=torch.long).to(device)
 
         if doc_idx % log_interval == 0:
             cur_loss = total_loss / log_interval
@@ -155,7 +159,10 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                       cur_loss,
                       ppl))
             total_loss = 0
-            start_time = time.time()
+            # this line meant that the time of each log interval was
+            # measured on its own. That might've been what I wanted
+            # to do at the time, but makes little sense now.
+            # start_time = time.time()
 
 
 def help(args, issue_description=""):
@@ -212,14 +219,13 @@ if __name__ == '__main__':
 
     train_corpus, target_indexing, dev_corpus = load_files(args)
 
-    numericalizer = Numericalizer(train_corpus.vocab)
+    numericalizer = Numericalizer(train_corpus)
     with open(cst.numer_fname, 'wb') as numericalizer_file:
         pickle.dump(numericalizer, numericalizer_file)
 
-    model = load_model(argv,
-                       args,
-                       vocab_size=len(numericalizer.vocab),
-                       target_indexing=target_indexing)
+    model = load_model(args,
+                       target_indexing=target_indexing,
+                       vocab_size=len(numericalizer.vocab))
 
     print("running on: ", device)
 
