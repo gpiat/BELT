@@ -15,7 +15,7 @@ class TokenType(Enum):
     WP = 2
 
     @classmethod
-    def form_str(cls, s):
+    def from_str(cls, s):
         s = s.lower()
         try:
             return cls(int(s))

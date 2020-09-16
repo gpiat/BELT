@@ -119,14 +119,14 @@ if __name__ == '__main__':
 
     args = get_corpus_init_args(argv)
 
-    no_valid_args = True
+    no_mandatory_args = True
 
     if "--create" in argv:
-        no_valid_args = False
+        no_mandatory_args = False
         create_corpora(fnames=args)
 
     if "--pickle" in argv:
-        no_valid_args = False
+        no_mandatory_args = False
         pickle_corpora(fnames=args)
         dct = 0
         if "--dct" in argv:
@@ -135,8 +135,9 @@ if __name__ == '__main__':
         UMLS_concepts_init(fnames=args, dflt_cat_thresh=dct)
         semantic_types_init(fnames=args)
 
-    if no_valid_args:
-        print("No valid arguments passed.\n"
+    if no_mandatory_args:
+        print("No mandatory arguments passed.\n"
+              "You must use one of the two following options:\n"
               "To create the train, test and validation corpora "
               "from a larger corpus, use option --create.\n"
               "To pickle the train, test and validation corpora "

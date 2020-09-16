@@ -91,7 +91,7 @@ def get_corpus_init_args(argv):
     }
     parse_args(argv, args)
     if type(args['--tokenization']) != TokenType:
-        args['--tokenization'] = TokenType.form_str(args['--tokenization'])
+        args['--tokenization'] = TokenType.from_str(args['--tokenization'])
     return args
 
 
