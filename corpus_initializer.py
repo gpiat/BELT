@@ -39,7 +39,7 @@ def UMLS_concepts_init(fnames, corpora=None,
     if corpora is None:
         corpora = [fnames["--full_corpus_fname"]]
     corpus = MedMentionsCorpus(corpora,
-                               split_by_char=fnames["--split_by_char"])
+                               tokenization=fnames["--tokenization"])
     umls_concepts = _UMLS_concepts_initializer(corpus, dflt_cat_thresh)
     with open(fnames["--umls_fname"], 'wb') as f:
         pickle.dump(umls_concepts, f)
@@ -100,12 +100,12 @@ def pickle_corpora(fnames):
     """
     train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']],
                                      auto_looping=True,
-                                     split_by_char=fnames['--split_by_char'])
+                                     tokenization=fnames['--tokenization'])
     val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']],
-                                   split_by_char=fnames['--split_by_char'])
+                                   tokenization=fnames['--tokenization'])
     test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']],
                                     auto_looping=True,
-                                    split_by_char=fnames['--split_by_char'])
+                                    tokenization=fnames['--tokenization'])
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
