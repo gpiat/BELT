@@ -3,6 +3,7 @@ import string
 
 from difflib import ndiff as diff
 from transformers import BertTokenizer
+from util import TokenType
 
 
 def text_preprocess(text):
@@ -98,7 +99,7 @@ class MedMentionsDocument:
     """
 
     def __init__(self, title, abstract, umls_mentions,
-                 tokenization='char'):
+                 tokenization=TokenType.CHAR, tokenizer=None):
         """ Args:
                 - (str) title: raw title line of text
                 - (str) abstract: raw abstract line of text
@@ -108,25 +109,22 @@ class MedMentionsDocument:
                     Determines how text is tokenized.
         """
         self.pmid, self.title = text_preprocess(title)
-        self.tokenization = tokenization.lower()
+        self.tokenization = tokenization
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
         self.raw_text = self.title + '\n' + self.abstract
 
-        if self.tokenization == 'char':
+        if self.tokenization == TokenType.CHAR:
             self.text = list(self.raw_text)
-        elif self.tokenization == 'naive':
+        elif self.tokenization == TokenType.NAIVE:
             self.text = self.raw_text.split()
-        elif self.tokenization == 'wp' or self.tokenization == 'wordpiece':
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        elif self.tokenization == TokenType.WP:
+            self.tokenizer = tokenizer
             self.tokenizer.tokenize(self.raw_text)
         else:
-            raise ValueError("Could not parse tokenization method.\n"
-                             "Accepted methods are:\n"
-                             "- 'char' for character-level tokenization\n"
-                             "- 'naive' for naive whitespace tokenization\n"
-                             "- 'wp' / 'wordpiece' for WordPiece tokenization")
+            raise ValueError(
+                "Could not parse tokenization method {}.".format(tokenization))
 
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
@@ -149,7 +147,7 @@ class MedMentionsDocument:
         if token_idx >= len(self.text):
             return None
 
-        if self.tokenization == 'char':
+        if self.tokenization == TokenType.CHAR:
             char_idx = token_idx
             # s_e_i_copy = list(itertools.chain(
             #                  *self.start_end_indices.copy()))
@@ -172,7 +170,7 @@ class MedMentionsDocument:
             #     mention = self.umls_entities[int(token_idx_idx / 2)]
             #     cuid = mention.concept_ID
             #     semtypeid = mention.semantic_type_ID
-        elif self.tokenization == 'naive':
+        elif self.tokenization == TokenType.NAIVE:
             # The idea here is to find the CUID of a word despite only
             # having the CUID of spans of characters. We therefore find
             # the CUID of a character of the word. Since we have only the
@@ -287,7 +285,7 @@ class MedMentionsCorpus:
     """
 
     def __init__(self, fnames, auto_looping=False,
-                 tokenization='char'):
+                 tokenization=TokenType.CHAR):
         # , no_punct=False):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
@@ -302,8 +300,12 @@ class MedMentionsCorpus:
         self._filenames = fnames
         self._currentfile = 0
         self._looping = auto_looping
-        # self.no_punct = no_punct
+
         self.tokenization = tokenization
+        self.tokenizer = None
+        if tokenization == TokenType.WP:
+            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
         (self.n_documents, self.cuids, self.stids,
          self.vocab) = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
@@ -363,7 +365,8 @@ class MedMentionsCorpus:
 
                 yield MedMentionsDocument(title, abstract,
                                           umls_entities,
-                                          self.tokenization)
+                                          self.tokenization,
+                                          self.tokenizer)
             f.close()
 
             self._currentfile += 1
