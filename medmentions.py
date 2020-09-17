@@ -121,7 +121,7 @@ class MedMentionsDocument:
             self.text = self.raw_text.split()
         elif self.tokenization == TokenType.WP:
             self.tokenizer = tokenizer
-            self.tokenizer.tokenize(self.raw_text)
+            self.text = self.tokenizer.tokenize(self.raw_text)
         else:
             raise ValueError(
                 "Could not parse tokenization method {}.".format(tokenization))
