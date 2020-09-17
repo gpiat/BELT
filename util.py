@@ -40,15 +40,19 @@ class Numericalizer:
             self.tokenizer = corpus.tokenizer
             self.vocab = self.tokenizer.vocab
             self.pad_token = self.tokenizer.pad_token
+            self.pad_token_id = self.tokenizer.pad_token_id
             self.unk_token = self.tokenizer.unk_token
+            self.unk_token_id = self.tokenizer.unk_token_id
             # self.mask_token = self.tokenizer.mask_token
         else:
             self.vocab = {word: (number + 2)
                           for number, word in enumerate(corpus.vocab)}
             self.unk_token = '<unk>'
             self.pad_token = '<pad>'
-            self.vocab[self.unk_token] = 0
-            self.vocab[self.pad_token] = 1
+            self.unk_token_id = 0
+            self.pad_token_id = 1
+            self.vocab[self.unk_token] = self.unk_token_id
+            self.vocab[self.pad_token] = self.pad_token_id
 
     def numericalize_text(self, text):
         """ maps a list of tokens to a unique list of integers"""

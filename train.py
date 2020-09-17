@@ -88,7 +88,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                           end_index - start_index))
             try:
                 tw = get_text_window(text, window_size, start_index, end_index,
-                                     pad_token=numericalizer.pad_token)
+                                     pad_token=numericalizer.pad_token_id)
             except RuntimeError as e:
                 debug()
                 raise e
