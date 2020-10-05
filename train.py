@@ -116,7 +116,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             # print("remaining text windows to complete batch: {}".format(
             #     (i + 1) % batch_size))
             if (i + 1) % batch_size == 0:
-                print(data)
                 optimizer.zero_grad()
                 output = model(data)
                 try:

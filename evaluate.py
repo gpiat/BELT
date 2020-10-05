@@ -121,6 +121,14 @@ def get_document_prec_rec_f1(predictions, targets):
 
 
 def get_token_prec_rec_f1(predictions, targets):
+    """ Gets precision, recall, F1, and proportion of correctly predicted
+        tokens at the token level.
+        Args:
+            predictions (list<list>): should contain one list per document.
+                Each sublist should contain token-level predictions.
+            targets (list<list>): should contain one list per document.
+                Each sublist should contain token-level targets.
+    """
     tp = 0
     fp = 0
     fn = 0
