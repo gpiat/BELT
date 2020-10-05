@@ -79,7 +79,7 @@ def get_text_window(text, window_size, start_index, end_index, pad_token=1):
     """
     # creating a zero-filled vector of the right size in
     # case the entire document is smaller than the vector
-    data = torch.full(window_size, pad_token, dtype=torch.long).to(device)
+    data = torch.full([window_size], pad_token, dtype=torch.long).to(device)
     data[0:end_index - start_index] =\
         torch.Tensor(text[start_index:end_index]).to(device)
     return data
