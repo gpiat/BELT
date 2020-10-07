@@ -128,7 +128,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                     raise e
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-                print("optimizer step")
                 optimizer.step()
 
                 total_loss += loss.item()
