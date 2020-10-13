@@ -156,8 +156,7 @@ def get_token_prec_rec_f1(predictions, targets):
     return (*prec_rec_f1(tp, fp, fn), pcpt)
 
 
-def predict(model, document, target_finder,
-            label_to_idx, numericalizer, overlap):
+def predict(model, document, target_finder, label_to_idx, overlap):
     """ Get predictions for a given model
         Args:
             model: The model doing the prediction
@@ -168,17 +167,15 @@ def predict(model, document, target_finder,
             label_to_idx <dict>: a lookup table associating the true
                 label of a token (str) to the index of its corresponding
                 index in predicted probability distribution.
-            numericalizer: object that manages the translation from text
-                to numbers for the model to use
             overlap [0-1]: amount of overlap between two text windows
                 preceding and following any given text window.
     """
     window_size = model.phrase_len
     document_tagged = []
     document_targets = []
-    text = numericalizer.numericalize_text(pad(document.text,
-                                               window_size,
-                                               overlap))
+    text = model.tokenizer.encode(pad(document.text,
+                                      window_size,
+                                      overlap))
 
     increment = round((1 - (overlap / 2)) * window_size)
     for i in range(0, len(text), increment):
@@ -230,7 +227,7 @@ def predict(model, document, target_finder,
     return document_tagged, document_targets, loss_increment
 
 
-def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
+def evaluate(model, corpus, target_finder, label_to_idx,
              txt_window_overlap, compute_mntn_p_r_f1=False,
              compute_doc_p_r_f1=False, compute_tkn_p_r_f1=False):
     """ Evaluates a BELT model
@@ -242,10 +239,6 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
             - (dict) label_to_idx: a dict mapping token labels (UMLS
                 CUIDs, STIDs etc.) to indices. Assumes all the CUIDs
                 used in the corpus are indexed in label_to_idx.
-            - (util.Numericalizer) numericalizer: converts words to
-                numbers for the purpose of input to the model. This
-                should be consistent with the numericalizer that was
-                used in training.
             - (float) txt_window_overlap[0-1]: amount of overlap between two
                 text windows preceding and following any given text window.
             - (bool) compute_mntn_p_r_f1: if True, add precision, recall
@@ -270,8 +263,7 @@ def evaluate(model, corpus, target_finder, label_to_idx, numericalizer,
         for document in corpus.documents():
             document_tagged, document_targets, loss_increment =\
                 predict(model, document, target_finder,
-                        label_to_idx, numericalizer,
-                        txt_window_overlap)
+                        label_to_idx, txt_window_overlap)
             total_loss += loss_increment
             text_tagged.append(document_tagged)
             text_targets.append(document_targets)
@@ -293,9 +285,6 @@ if __name__ == '__main__':
     with open(args['--umls_fname'], 'rb') as umls_con_file:
         # TODO: GENERALIZE TO STIDs & BIN
         umls_cuid_to_idx = pickle.load(umls_con_file)
-
-    with open(args['--numer_fname'], 'rb') as numericalizer_file:
-        numericalizer = pickle.load(numericalizer_file)
     with open(args['--test_fname'], 'rb') as test_file:
         test_corpus = pickle.load(test_file)
     with open(args['--model_fname'], 'rb') as model_file:
@@ -311,8 +300,7 @@ if __name__ == '__main__':
             for document in test_corpus.documents():
                 document_tagged, document_targets, _ =\
                     predict(best_model, document, target_finder,
-                            umls_cuid_to_idx, numericalizer,
-                            args['--overlap'])
+                            umls_cuid_to_idx, args['--overlap'])
                 document_tagged = cuid_list_to_ranges(document_tagged)
                 document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
@@ -340,9 +328,10 @@ if __name__ == '__main__':
          (doc_precision, doc_recall, doc_f1),
          (tok_precision, tok_recall, tok_f1, tok_accuracy)) =\
             evaluate(best_model, test_corpus, target_finder,
-                     umls_cuid_to_idx, numericalizer,
-                     args['--overlap'], compute_mntn_p_r_f1=True,
-                     compute_doc_p_r_f1=True, compute_tkn_p_r_f1=True)
+                     umls_cuid_to_idx, args['--overlap'],
+                     compute_mntn_p_r_f1=True,
+                     compute_doc_p_r_f1=True,
+                     compute_tkn_p_r_f1=True)
 
         print('=' * 89)
         print('test loss {:5.2f}'.format(test_loss))
