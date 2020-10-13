@@ -30,7 +30,7 @@ class PositionalEncoding(nn.Module):
 
 class BELT(nn.Module):
 
-    def __init__(self, ntoken, n_classes, embed_size, nhead,
+    def __init__(self, tokenizer, n_classes, embed_size, nhead,
                  nhid, nlayers, phrase_len, dropout=0.5, pad_token=1):
         """Args:
             - <int> ntoken: vocabulary size
@@ -52,8 +52,9 @@ class BELT(nn.Module):
         self.pad_token = pad_token
         self.numheads = nhead
         self.n_classes = n_classes
+        self.tokenizer = tokenizer
 
-        self.encoder = nn.Embedding(ntoken, embed_size)
+        self.encoder = nn.Embedding(len(tokenizer.vocab), embed_size)
         self.pos_encoder = PositionalEncoding(embed_size, dropout)
         encoder_layers = TransformerEncoderLayer(embed_size, nhead,
                                                  nhid, dropout)
