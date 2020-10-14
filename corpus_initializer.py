@@ -4,6 +4,7 @@ from sys import argv
 
 from args_handler import get_corpus_init_args
 from medmentions import MedMentionsCorpus
+from tokenizer import get_tokenizer
 
 
 def _UMLS_concepts_initializer(corpus, dct):
@@ -98,14 +99,12 @@ def pickle_corpora(fnames):
         pickled. This avoids object creation overhead (which is fairly
         expensive) when running many experiments on the same corpus.
     """
+    tokenizer = get_tokenizer(fnames['--tokenization'], fnames['--vocab_file'])
     train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']],
-                                     auto_looping=True,
-                                     tokenization=fnames['--tokenization'])
-    val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']],
-                                   tokenization=fnames['--tokenization'])
+                                     tokenizer, auto_looping=True)
+    val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']], tokenizer)
     test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']],
-                                    auto_looping=True,
-                                    tokenization=fnames['--tokenization'])
+                                    tokenizer, auto_looping=True)
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
