@@ -1,6 +1,6 @@
 import itertools
 
-# from difflib import ndiff as diff
+from diff_match_patch import diff_match_patch
 from util import TokenType
 
 
@@ -77,6 +77,7 @@ class MedMentionsDocument:
         self.tokenizer = tokenizer
         self.text = self.tokenizer.tokenize(self.raw_text)
         self.tokenization = tokenizer.tokenization
+        self.targets = self._initialize_targets()
 
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
@@ -86,180 +87,78 @@ class MedMentionsDocument:
         self.start_end_indices = list(itertools.chain(
             [(e.start_idx - 1, e.stop_idx - 1) for e in self.umls_entities]))
 
-    def get_mention_id(self, token_idx, mode="cuid"):
-        """ Returns the CUID of a word given its index (returns
-            None if not part of a UMLS concept mention)
-            Args:
-                token_idx (int): index of the word in self.text
-        """
-
-        cuid = None
-        semtypeid = None
-
-        if token_idx >= len(self.text):
-            return None
-
-        if self.tokenization == TokenType.CHAR:
-            char_idx = token_idx
-            # s_e_i_copy = list(itertools.chain(
-            #                  *self.start_end_indices.copy()))
-            # s_e_i_copy.append(token_idx)
-            # s_e_i_copy.sort()
-            # # if the character is in a mention, its index will be between
-            # # a start and a stop index. Since they alternate, all start
-            # # indices are at even positions within the list, and all stop
-            # # indices will be at odd positions. Therefore, the index of a
-            # # character that is in a mention will be put at an odd position
-            # # in the list. Conversely, a character that is not in a mention
-            # # will be at an even position. Since index() returns the first
-            # # occurence, if the character examined is equal to the start
-            # # index, it will be found at an even position, therefore the
-            # # start index of the mention has to be exclusive. The reverse
-            # # is true for the stop index of the mention.
-            # token_idx_idx = s_e_i_copy.index(token_idx)
-            # is_in_mention = bool(token_idx_idx % 2)
-            # if is_in_mention:
-            #     mention = self.umls_entities[int(token_idx_idx / 2)]
-            #     cuid = mention.concept_ID
-            #     semtypeid = mention.semantic_type_ID
-        elif self.tokenization == TokenType.NAIVE:
-            # The idea here is to find the CUID of a word despite only
-            # having the CUID of spans of characters. We therefore find
-            # the CUID of a character of the word. Since we have only the
-            # index of the word (and not its characters), we have to apply
-            # a conversion by summing the lengths of the words that come
-            # before it.
-            char_idx = sum([len(word) for word in self.text[:(token_idx + 1)]])
-            # can't forget to add the spaces
-            # one between each word = (token_idx + 1) - 1
-            # +1 because lists start at 0; -1 because one space between
-            # each word for some reason this selects the space after the word,
-            # so I'm substracting 1 but I can't figure out why
-            char_idx += token_idx - 1
-            # char_idx is the index of the last character. Because of the way
-            # strings are  split, this can point to a punctuation mark.
-            # we subtract half the word length to get a character approximately
-            # in the middle of the word.
-            char_idx -= len(self.text[token_idx]) / 2
-
-        else:
-            # TODO: actually the proper way of doing this would be to do an
-            # equivalent of diff and use that to track the corresponding index
-            # in the raw text as you progress through the tokens and assign
-            # a class... I think? This idea has a linear complexity, whereas
-            # the following has an n**2 complexity (approx. linear for each
-            # token)
-
-            # This version still needs to be called many times, but at least
-            # doesn't use diff
-            # # getting previous tokens including the one we want
-            previous_tokens = self.text[:token_idx + 1]
-            # removing double #s and reversing the list so that we can pop()
-            # in the correct order
-            previous_tokens = [wp if not wp.startswith('##') else wp[2:]
-                               for wp in previous_tokens]
-            previous_tokens.reverse()
-            # at this point all we should need are to add the correct spaces
-            # back in. The tokenizer removes all spaces, so we don't have that
-            # to worry about.
-
-            text_before = []
-            original_text_counter = 0
-            # we're going through the tokens, keeping an index to the original
-            # text aligned with the characters in the tokens, and adding spaces
-            # back in between the tokens where they're missing.
-            for i in range(len(previous_tokens)):
-                while self.raw_text[original_text_counter] == ' ':
-                    text_before.append(' ')
-                    original_text_counter += 1
-                wp = previous_tokens.pop()
-                original_text_counter += len(wp)
-                text_before.append(wp)
-
-            text_before = ''.join(text_before)
-
-            # The following uses diff and thus was retired
-            # # the difficulty here is that wordpiece adds characters that
-            # # need to be accounted for when resolving character indices
-
-            # # Given that the tokenized text contains artifacts such as `##`
-            # # markers to denote suffixes, the idea is to let the tokenizer
-            # # figure out what the text before the current token was like.
-            # # We can then count characters to find the beginning and end
-            # # indices of the characters of the current token.
-
-            # # However, it's not as simple as that because the decoded text
-            # # is not exactly the same as the original text.
-            # # For starters, `[CLS] ` and ` [SEP]` are added at the beginning
-            # # and end of the decoded text respectively. Removing these is
-            # # simple enough.
-            # #    (In fact, there may or may not be a space after `[CLS]`
-            # #    depending on whether the first token is a suffix or not, but
-            # #    this shouldn't come into consideration since the text won't
-            # #    start with a suffix)
-
-            # # Getting the text before the token we want.
-            # # The [6:-6] is to remove the `[CLS] ` and ` [SEP]` markers.
-            # # Here we choose to include the token of interest because it
-            # # automatically handles the problem of knowing whether to
-            # # account for a space before the token of interest.
-
-            # text_before = self.tokenizer.decode(
-            #     self.tokenizer.encode(self.text[:token_idx + 1]))[6:-6]
-
-            # # Furthermore, when parsing punctuation, some extra whitespaces
-            # # may be introduced. To remove these, we use difflib to identify
-            # # these inaccuracies w.r.t. the original text.
-            # text_before = ''.join([c[-1]
-            #                        for c in diff(text_before,
-            #                                      self.raw_text.lower())
-            #                        if c[0] != '+'])
-
-            # # char_idx is the index of the last character of the token.
-            # # We assume there are no mentions that stop in the middle of a
-            # # token, meaning that taking any character of the mention is
-            # # fine.
-            char_idx = len(text_before) - 1
-
-        for mention in self.umls_entities:
-            if mention.start_idx <= char_idx < mention.stop_idx:
-                cuid = mention.concept_ID
-                semtypeid = mention.semantic_type_ID
-                break  # it may theoretically be possible that one word is
-                # part of several UMLS mentions but that case would be
-                # impractical to handle and likely wouldn't matter at
-                # scale.
-
-        if mode == "cuid":
-            return cuid
-        elif mode == "semtype":
-            return semtypeid
-        else:
-            raise ValueError('Invalid argument for method get_mention_id '
-                             ' of class MedMentionsDocument: "mode" argument '
-                             'must either have value "cuid" or "semtype", but '
-                             'found ' + str(mode))
-
-    def get_mention_ids(self, first_token_idx, last_token_idx, mode="cuid"):
-        """ Gets the ID of the entity for the corresponding
-            mention of each token.
-            Args:
-                first_token_idx: index of the first token
-                    to examine in self.text
-                last_token_idx: index of the last token
-                    to examine in self.text
-                mode: one of "cuid" or "semtype" depending on whether the
-                    semantic type ID or UMLS Concept Unique Identifier
-                    should be returned.
-        """
-        return [self.get_mention_id(token_idx, mode=mode)
-                for token_idx in range(first_token_idx, last_token_idx)]
-
     def _initialize_targets(self, mode="cuid"):
+        char_level_targets = [None] * len(self.raw_text)
+        for i in range(len(char_level_targets)):
+            for e in self.umls_entities:
+                if i >= e.start_idx and i < e.stop_idx:
+                    if mode == "cuid":
+                        char_level_targets[i] = e.concept_ID
+                    else:
+                        char_level_targets[i] = e.semantic_type_ID
+                    continue
+                elif i > e.stop_idx:
+                    continue
+
         self.targets = []
+        token = iter(self.text)
+        concat_tokens = ''.join(self.text)
+        dmp = diff_match_patch()
+        diff = dmp.diff_main(self.raw_text, concat_tokens)
+        # this diff library creates diffs of the form:
+        #   [(flag, substring), (flag, substring), ...]
+        # where "flag" can be 1, -1 or 0 depending on whether
+        # the substring is in concat_tokens but not raw_text,
+        # vice-versa, or in both repectively.
+        # example:
+        #   raw_text = 'Nonylphenol'
+        #   concat_tokens = 'Non##yl##phe##no##l'
+        #   diff = [(0, 'Non'), (1, '##'), (0, 'yl'), (1, '##'),
+        #           (0, 'phe'), (1, '##'), (0, 'no'), (1, '##'), (0, 'l')]
+        # However, it is much easier to handle a character-level diff, e.g. :
+        #   [(0, 'N'), (0, 'o'), (0, 'n'), (1, '#'), (1, '#'), (0, 'y'), ...]
+        # This is what we set out to do with the following list
+        # comprehension, which may seem obscure, but it is 30%
+        # faster than the equivalent loop, which can be written as:
+        # new_diff = []
+        # for flag, sub_str in diff:
+        #     new_diff += list(zip([flag] * len(sub_str), sub_str))
+        # diff = new_diff
+        #
+        # diff = list(itertools.chain(*[zip([a] * len(b), b)
+        #                               for a, b in diff]))
+        #
+        # actually we dont need to keep the character, further dividing
+        # execution time by 2
+        diff = list(itertools.chain(*[[flag] * len(sub_str)
+                                      for flag, sub_str in diff]))
+
+        token_targets = [None] * len(self.text)
+        chars_left_in_current_token = len(next(token))
+        current_char_index = 0
+        current_token_index = 0
+        for flag in diff:
+            if chars_left_in_current_token == 0:
+                token_targets[current_token_index] =\
+                    char_level_targets[current_char_index]
+                current_token_index += 1
+                chars_left_in_current_token = len(next(token))
+            if flag == 0:
+                current_char_index += 1
+                chars_left_in_current_token -= 1
+            elif flag == -1:
+                current_char_index += 1
+            else:
+                chars_left_in_current_token -= 1
+        self.char_level_targets = char_level_targets
+        self.targets = token_targets
 
     def get_vocab(self):
-        return list(set(self.text))
+        try:
+            return self.vocab
+        except AttributeError:
+            self.vocab = list(set(self.text))
+        return self.vocab
 
     def write_to(self, filename):
         with open(filename, 'a') as f:
