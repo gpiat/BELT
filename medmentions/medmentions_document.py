@@ -1,8 +1,6 @@
 import itertools
-import string
 
-from difflib import ndiff as diff
-from transformers import BertTokenizer
+# from difflib import ndiff as diff
 from util import TokenType
 
 
@@ -26,43 +24,6 @@ def text_preprocess(text):
     text = "|".join(text)[:-1]
 
     return pmid, text
-
-
-def split_punctuation(text):
-    """ Args:
-            list<str>
-        Return:
-            list<str>
-        ex:
-        in:  ['hello,', 'how', 'do', 'you', 'do?']
-        out: ['hello', ',', 'how', 'do', 'you', 'do', '?']
-    """
-    new_text = []
-    for word in text:
-        new_word = ''
-        for char in word:
-            if char not in string.punctuation:
-                new_word += char
-            else:
-                new_text.append(new_word)
-                new_word = char
-        new_text.append(new_word)
-    return new_text
-
-
-def peek(file, n=1):
-    """ Reads n lines ahead in a file without changing the file
-        object's current position in the file
-        Args:
-            - file: a text file
-            - n (int): how many lines ahead should be read, defaults to 1
-        Return:
-            - line: last line read
-    """
-    pos = file.tell()
-    lines = [file.readline() for i in range(n)]
-    file.seek(pos)
-    return lines[-1]
 
 
 class UMLS_Entity:
@@ -191,45 +152,82 @@ class MedMentionsDocument:
             char_idx -= len(self.text[token_idx]) / 2
 
         else:
-            # TODO
-            # the difficulty here is that wordpiece adds characters that
-            # need to be accounted for when resolving character indices
+            # TODO: actually the proper way of doing this would be to do an
+            # equivalent of diff and use that to track the corresponding index
+            # in the raw text as you progress through the tokens and assign
+            # a class... I think? This idea has a linear complexity, whereas
+            # the following has an n**2 complexity (approx. linear for each
+            # token)
 
-            # Given that the tokenized text contains artifacts such as `##`
-            # markers to denote suffixes, the idea is to let the tokenizer
-            # figure out what the text before the current token was like.
-            # We can then count characters to find the beginning and end
-            # indices of the characters of the current token.
+            # This version still needs to be called many times, but at least
+            # doesn't use diff
+            # # getting previous tokens including the one we want
+            previous_tokens = self.text[:token_idx + 1]
+            # removing double #s and reversing the list so that we can pop()
+            # in the correct order
+            previous_tokens = [wp if not wp.startswith('##') else wp[2:]
+                               for wp in previous_tokens]
+            previous_tokens.reverse()
+            # at this point all we should need are to add the correct spaces
+            # back in. The tokenizer removes all spaces, so we don't have that
+            # to worry about.
 
-            # However, it's not as simple as that because the decoded text
-            # is not exactly the same as the original text.
-            # For starters, `[CLS] ` and ` [SEP]` are added at the beginning
-            # and end of the decoded text respectively. Removing these is
-            # simple enough.
-            #    (In fact, there may or may not be a space after `[CLS]`
-            #    depending on whether the first token is a suffix or not, but
-            #    this shouldn't come into consideration since the text won't
-            #    start with a suffix)
-            # Furthermore, when parsing punctuation, some extra whitespaces
-            # may be introduced. To remove these, we use difflib to identify
-            # these inaccuracies w.r.t. the original text.
+            text_before = []
+            original_text_counter = 0
+            # we're going through the tokens, keeping an index to the original
+            # text aligned with the characters in the tokens, and adding spaces
+            # back in between the tokens where they're missing.
+            for i in range(len(previous_tokens)):
+                while self.raw_text[original_text_counter] == ' ':
+                    text_before.append(' ')
+                    original_text_counter += 1
+                wp = previous_tokens.pop()
+                original_text_counter += len(wp)
+                text_before.append(wp)
 
-            # Getting the text before the token we want.
-            # The [6:-6] is to remove the `[CLS] ` and ` [SEP]` markers.
-            # Here we choose to include the token of interest because it
-            # automatically handles the problem of knowing whethter to
-            # account for a space before the token of interest.
-            text_before = self.tokenizer.decode(
-                self.tokenizer.encode(self.text[:token_idx + 1]))[6:-6]
+            text_before = ''.join(text_before)
 
-            text_before = ''.join([c[-1]
-                                   for c in diff(self.raw_text, text_before)
-                                   if c[0] != '+'])
+            # The following uses diff and thus was retired
+            # # the difficulty here is that wordpiece adds characters that
+            # # need to be accounted for when resolving character indices
 
-            # char_idx is the index of the last character of the token.
-            # We assume there are no mentions that stop in the middle of a
-            # token, meaning that taking any character of the mention is
-            # fine.
+            # # Given that the tokenized text contains artifacts such as `##`
+            # # markers to denote suffixes, the idea is to let the tokenizer
+            # # figure out what the text before the current token was like.
+            # # We can then count characters to find the beginning and end
+            # # indices of the characters of the current token.
+
+            # # However, it's not as simple as that because the decoded text
+            # # is not exactly the same as the original text.
+            # # For starters, `[CLS] ` and ` [SEP]` are added at the beginning
+            # # and end of the decoded text respectively. Removing these is
+            # # simple enough.
+            # #    (In fact, there may or may not be a space after `[CLS]`
+            # #    depending on whether the first token is a suffix or not, but
+            # #    this shouldn't come into consideration since the text won't
+            # #    start with a suffix)
+
+            # # Getting the text before the token we want.
+            # # The [6:-6] is to remove the `[CLS] ` and ` [SEP]` markers.
+            # # Here we choose to include the token of interest because it
+            # # automatically handles the problem of knowing whether to
+            # # account for a space before the token of interest.
+
+            # text_before = self.tokenizer.decode(
+            #     self.tokenizer.encode(self.text[:token_idx + 1]))[6:-6]
+
+            # # Furthermore, when parsing punctuation, some extra whitespaces
+            # # may be introduced. To remove these, we use difflib to identify
+            # # these inaccuracies w.r.t. the original text.
+            # text_before = ''.join([c[-1]
+            #                        for c in diff(text_before,
+            #                                      self.raw_text.lower())
+            #                        if c[0] != '+'])
+
+            # # char_idx is the index of the last character of the token.
+            # # We assume there are no mentions that stop in the middle of a
+            # # token, meaning that taking any character of the mention is
+            # # fine.
             char_idx = len(text_before) - 1
 
         for mention in self.umls_entities:
@@ -266,6 +264,9 @@ class MedMentionsDocument:
         return [self.get_mention_id(token_idx, mode=mode)
                 for token_idx in range(first_token_idx, last_token_idx)]
 
+    def _initialize_targets(self, mode="cuid"):
+        self.targets = []
+
     def get_vocab(self):
         return list(set(self.text))
 
@@ -276,101 +277,3 @@ class MedMentionsDocument:
             for entity in self.umls_entities:
                 f.write(str(entity) + '\n')
             f.write('\n')
-
-
-class MedMentionsCorpus:
-    """ This class instantiates a MedMentions corpus using one or more
-        PubTator-formatted files. Its main purpose is to iterate over
-        documents with the documents() generator function.
-    """
-
-    def __init__(self, fnames, auto_looping=False,
-                 tokenization=TokenType.CHAR):
-        """ Args:
-                - fnames (list<str>): list of filenames in the corpus
-                - auto_looping (bool): whether retrieving documents should
-                    automatically loop or not
-        """
-
-        self._filenames = fnames
-        self._currentfile = 0
-        self._looping = auto_looping
-
-        self.tokenization = tokenization
-        self.tokenizer = None
-        if tokenization == TokenType.WP:
-            self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-        (self.n_documents, self.cuids, self.stids,
-         self.vocab) = self._get_cuids_and_vocab()
-        self.nconcepts = len(self.cuids)
-
-    def _get_cuids_and_vocab(self):
-        """ Collects the CUIDs, STIDs and vocabulary of the corpus.
-            Should not be used outside of the constructor, because
-            it relies on the document counter being at the start.
-            If you need CUIDs or vocab, use the appropriate attributes.
-        """
-        cuids = {}
-        stids = {}
-        vocab = set()
-        n_documents = 0
-        for document in self.documents():
-            n_documents += 1
-            for entity in document.umls_entities:
-                if entity.concept_ID in cuids:
-                    cuids[entity.concept_ID] += 1
-                else:
-                    cuids[entity.concept_ID] = 1
-                if entity.semantic_type_ID in stids:
-                    stids[entity.semantic_type_ID] += 1
-                else:
-                    stids[entity.semantic_type_ID] = 1
-            for word in document.text:
-                vocab.add(word)
-        self.loop_documents()
-        return n_documents, cuids, stids, vocab
-
-    def documents(self):
-        """ Yields:
-                - pmid (str): the next document's PMID
-                - title (str): the next document's title
-                - abstract (str): the next document's abstract
-                - umls_entities (list<str>): list of UMLS entities
-                    for the next document
-        """
-        while self._currentfile < len(self._filenames):
-            # opening the file -- not using `with` because
-            # it causes excessive indentation
-            f = open(self._filenames[self._currentfile], 'r')
-
-            next_line = None
-            while next_line != '' and peek(f) != '':
-                title = f.readline()
-                abstract = f.readline()
-                next_line = f.readline()
-
-                # after the abstract, each entity mention is written on a
-                # separate line. The next document comes after a newline.
-                umls_entities = []
-                while next_line != '\n' and next_line != '':
-                    # [:-1] deletes the trailing newline character
-                    umls_entities.append(next_line[:-1])
-                    next_line = f.readline()
-
-                yield MedMentionsDocument(title, abstract,
-                                          umls_entities,
-                                          self.tokenization,
-                                          self.tokenizer)
-            f.close()
-
-            self._currentfile += 1
-            if self._currentfile >= len(self._filenames) and self._looping:
-                self.loop_documents()
-                return
-
-    def loop_documents(self):
-        """ Restarts the document file counter. This only takes
-            effect after the file currently being read ends.
-        """
-        self._currentfile = 0
