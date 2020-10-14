@@ -24,7 +24,7 @@ test_fname = pkl_prefix + "test.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
 # this is the vocabulary file for the BERT tokenizer
-vocab_file = 'bert-base-uncased'
+vocab_file = 'bert-base-cased'
 
 wd = os.getcwd() + '/'
 train_stats_fname = "/train_stats.csv"

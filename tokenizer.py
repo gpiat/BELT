@@ -42,7 +42,6 @@ class BaseTokenizer:
                 vocab_fname (str): optional. If given, the vocabulary will be
                 loaded from the file.
         """
-        self.tokenization = TokenType.CHAR
         self.pad_token = '[PAD]'
         self.unk_token = '[UNK]'
         self.pad_token_id = 0
@@ -85,6 +84,7 @@ class BaseTokenizer:
 class CharTokenizer(BaseTokenizer):
     def __init__(self, vocab_fname):
         super().__init__(vocab_fname)
+        self.tokenization = TokenType.CHAR
 
     def tokenize(self, text):
         return list(text)
@@ -96,6 +96,7 @@ class CharTokenizer(BaseTokenizer):
 class NaiveTokenizer(BaseTokenizer):
     def __init__(self, vocab_fname):
         super().__init__(vocab_fname)
+        self.tokenization = TokenType.NAIVE
 
     def tokenize(self, text):
         return text.split()
@@ -113,43 +114,3 @@ def get_tokenizer(tokenization, vocab_fname):
         return tok
     else:
         return NaiveTokenizer(vocab_fname)
-
-
-# class Numericalizer:
-#     def __init__(self, corpus):
-#         self.tokenization = corpus.tokenization
-#         if corpus.tokenization == TokenType.WP:
-#             self.tokenizer = corpus.tokenizer
-#             self.vocab = self.tokenizer.vocab
-#             self.pad_token = self.tokenizer.pad_token
-#             self.pad_token_id = self.tokenizer.pad_token_id
-#             self.unk_token = self.tokenizer.unk_token
-#             self.unk_token_id = self.tokenizer.unk_token_id
-#         else:
-#             self.vocab = {word: (number + 2)
-#                           for number, word in enumerate(corpus.vocab)}
-#             self.unk_token = '<unk>'
-#             self.pad_token = '<pad>'
-#             self.unk_token_id = 0
-#             self.pad_token_id = 1
-#             self.vocab[self.unk_token] = self.unk_token_id
-#             self.vocab[self.pad_token] = self.pad_token_id
-
-#     def numericalize_text(self, text):
-#         """ maps a list of tokens to a unique list of integers"""
-#         if self.tokenization == TokenType.WP:
-#             return self.tokenizer.encode(text)
-#         # else:
-#         numericalized = []
-#         for token in text:
-#             try:
-#                 numericalized.append(self.vocab[token])
-#             except KeyError:
-#                 numericalized.append(self.vocab[self.unk_token])
-#         return numericalized
-
-
-# class FastTextVectorizer(Numericalizer):
-#     # TODO
-#     def __init__(self, vocab):
-#         pass

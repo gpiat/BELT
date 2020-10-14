@@ -100,7 +100,6 @@ def load_model(args, target_indexing, tokenizer=None):
             target_indexing (dict): a lookup table for determining class names
             tokenizer: Optional because only useful if a new model is being
                 created.
-
     """
     n_classes = len(target_indexing) if args['--target_type'] != "bin" else 1
     if args['--resume']:
