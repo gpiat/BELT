@@ -2,76 +2,7 @@ import pickle
 import torch
 
 from constants import device
-from enum import Enum
 from model import BELT
-
-
-class TokenType(Enum):
-    NAIVE = 0
-    WORD = 0
-    CHARACTER = 1
-    CHAR = 1
-    WORDPIECE = 2
-    WP = 2
-
-    @classmethod
-    def from_str(cls, s):
-        s = s.lower()
-        try:
-            return cls(int(s))
-        except ValueError:
-            pass
-        if s in ['naive', 'word']:
-            return cls.NAIVE
-        elif s in ['char', 'character']:
-            return cls.CHAR
-        elif s in ['wordpiece', 'wp']:
-            return cls.WP
-        else:
-            raise ValueError("{} not recognized as a token type."
-                             " Available token types are 'naive',"
-                             " 'char' and 'wordpiece'.".format(s))
-
-
-class Numericalizer:
-    def __init__(self, corpus):
-        self.tokenization = corpus.tokenization
-        if corpus.tokenization == TokenType.WP:
-            self.tokenizer = corpus.tokenizer
-            self.vocab = self.tokenizer.vocab
-            self.pad_token = self.tokenizer.pad_token
-            self.pad_token_id = self.tokenizer.pad_token_id
-            self.unk_token = self.tokenizer.unk_token
-            self.unk_token_id = self.tokenizer.unk_token_id
-            # self.mask_token = self.tokenizer.mask_token
-        else:
-            self.vocab = {word: (number + 2)
-                          for number, word in enumerate(corpus.vocab)}
-            self.unk_token = '<unk>'
-            self.pad_token = '<pad>'
-            self.unk_token_id = 0
-            self.pad_token_id = 1
-            self.vocab[self.unk_token] = self.unk_token_id
-            self.vocab[self.pad_token] = self.pad_token_id
-
-    def numericalize_text(self, text):
-        """ maps a list of tokens to a unique list of integers"""
-        if self.tokenization == TokenType.WP:
-            return self.tokenizer.encode(text)
-        # else:
-        numericalized = []
-        for token in text:
-            try:
-                numericalized.append(self.vocab[token])
-            except KeyError:
-                numericalized.append(self.vocab[self.unk_token])
-        return numericalized
-
-
-class FastTextVectorizer(Numericalizer):
-    # TODO
-    def __init__(self, vocab):
-        pass
 
 
 def get_text_window(text, window_size, start_index, end_index, pad_token=1):
@@ -162,13 +93,13 @@ def pad(text, window_size, overlap, batch_size=1, pad_token='<pad>'):
     return out_text
 
 
-def load_model(args, target_indexing, vocab_size=0):
+def load_model(args, target_indexing, tokenizer=None):
     """ Loads or creates a model for training.
         Args:
             args (dict): a dict of arguments processed from the command line
             target_indexing (dict): a lookup table for determining class names
-            vocab_size (int): number of unique tokens in the corpus. Optional
-                because only useful if a new model is being created.
+            tokenizer: Optional because only useful if a new model is being
+                created.
 
     """
     n_classes = len(target_indexing) if args['--target_type'] != "bin" else 1
@@ -181,7 +112,7 @@ def load_model(args, target_indexing, vocab_size=0):
         if (model.decoder.out_features - 1) != n_classes:
             model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
     else:
-        model = BELT(ntoken=vocab_size,
+        model = BELT(tokenizer=tokenizer,
                      n_classes=n_classes,
                      embed_size=200, nhead=2, nhid=200,
                      nlayers=2, phrase_len=args['--window_size'],
