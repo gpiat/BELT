@@ -1,5 +1,3 @@
-from transformers import BertTokenizer
-from util import TokenType
 from .medmentions_document import MedMentionsDocument
 
 
@@ -35,8 +33,8 @@ class MedMentionsCorpus:
         self._currentfile = 0
         self._looping = auto_looping
 
-        self.tokenization = tokenizer.tokenization
         self.tokenizer = tokenizer
+        self.tokenization = tokenizer.tokenization
 
         (self.n_documents, self.cuids, self.stids,
          self.vocab) = self._get_cuids_and_vocab()
@@ -97,7 +95,6 @@ class MedMentionsCorpus:
 
                 yield MedMentionsDocument(title, abstract,
                                           umls_entities,
-                                          self.tokenization,
                                           self.tokenizer)
             f.close()
 

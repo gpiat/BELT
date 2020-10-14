@@ -59,8 +59,7 @@ class MedMentionsDocument:
                 PubTator entity mention annotations.
     """
 
-    def __init__(self, title, abstract, umls_mentions,
-                 tokenization=TokenType.CHAR, tokenizer=None):
+    def __init__(self, title, abstract, umls_mentions, tokenizer=None):
         """ Args:
                 - (str) title: raw title line of text
                 - (str) abstract: raw abstract line of text
@@ -70,22 +69,14 @@ class MedMentionsDocument:
                     Determines how text is tokenized.
         """
         self.pmid, self.title = text_preprocess(title)
-        self.tokenization = tokenization
         _, self.abstract = text_preprocess(abstract)
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
         self.raw_text = self.title + '\n' + self.abstract
 
-        if self.tokenization == TokenType.CHAR:
-            self.text = list(self.raw_text)
-        elif self.tokenization == TokenType.NAIVE:
-            self.text = self.raw_text.split()
-        elif self.tokenization == TokenType.WP:
-            self.tokenizer = tokenizer
-            self.text = self.tokenizer.tokenize(self.raw_text)
-        else:
-            raise ValueError(
-                "Could not parse tokenization method {}.".format(tokenization))
+        self.tokenizer = tokenizer
+        self.text = self.tokenizer.tokenize(self.raw_text)
+        self.tokenization = tokenizer.tokenization
 
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
