@@ -89,7 +89,7 @@ class CharTokenizer(BaseTokenizer):
     def tokenize(self, text):
         return list(text)
 
-    def detokenize(tokenized_txt):
+    def detokenize(self, tokenized_txt):
         return ''.join(tokenized_txt)
 
 
@@ -100,7 +100,7 @@ class NaiveTokenizer(BaseTokenizer):
     def tokenize(self, text):
         return text.split()
 
-    def detokenize(tokenized_txt):
+    def detokenize(self, tokenized_txt):
         return ' '.join(tokenized_txt)
 
 
