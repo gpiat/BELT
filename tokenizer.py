@@ -69,6 +69,7 @@ class BaseTokenizer:
     def decode(self, encoded_text):
         decoded = self._encode_decode(
             encoded_text, self.ids_to_tokens, self.unk_token)
+        decoded = self.detokenize(decoded)
         return decoded
 
     def _encode_decode(self, input_txt, converter, default_value):
@@ -82,19 +83,25 @@ class BaseTokenizer:
 
 
 class CharTokenizer(BaseTokenizer):
-    def __init__(self, vocab):
-        super().__init__()
+    def __init__(self, vocab_fname):
+        super().__init__(vocab_fname)
 
     def tokenize(self, text):
         return list(text)
 
+    def detokenize(tokenized_txt):
+        return ''.join(tokenized_txt)
+
 
 class NaiveTokenizer(BaseTokenizer):
-    def __init__(self, vocab):
-        super().__init__()
+    def __init__(self, vocab_fname):
+        super().__init__(vocab_fname)
 
     def tokenize(self, text):
         return text.split()
+
+    def detokenize(tokenized_txt):
+        return ' '.join(tokenized_txt)
 
 
 def get_tokenizer(tokenization, vocab_fname):
