@@ -12,7 +12,6 @@ from args_handler import select_optimizer
 from constants import criterion
 from constants import device
 
-from util import Numericalizer
 from util import get_text_window
 from util import pad
 from util import set_targets
@@ -23,7 +22,7 @@ from sys import argv
 
 
 def train(model, corpus, target_finder, target_indexing, optimizer,
-          scheduler, numericalizer, batch_size, overlap=0.2, epoch=0,
+          scheduler, batch_size, overlap=0.2, epoch=0,
           log_interval=200):
     """ Args:
             model
@@ -32,7 +31,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                 for the text span
             optimizer
             scheduler
-            numericalizer: Numericalizer object for numericalizing text
             batch_size (int): number of batches of text to handle
                 simultaneously
             overlap (float in [0,1]): proportion of the windows that should
@@ -49,8 +47,8 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         # print("doc index: {}".format(doc_idx))
         padded_text = pad(document.text, window_size, overlap,
                           batch_size=batch_size,
-                          pad_token=numericalizer.pad_token)
-        text = numericalizer.numericalize_text(padded_text)
+                          pad_token=model.tokenizer.pad_token)
+        text = model.tokenizer.encode(padded_text)
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
@@ -88,7 +86,7 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                           end_index - start_index))
             try:
                 tw = get_text_window(text, window_size, start_index, end_index,
-                                     pad_token=numericalizer.pad_token_id)
+                                     pad_token=model.tokenizer.pad_token_id)
             except RuntimeError as e:
                 debug()
                 raise e
@@ -217,13 +215,9 @@ if __name__ == '__main__':
 
     train_corpus, target_indexing, dev_corpus = load_files(args)
 
-    numericalizer = Numericalizer(train_corpus)
-    with open(cst.numer_fname, 'wb') as numericalizer_file:
-        pickle.dump(numericalizer, numericalizer_file)
-
     model = load_model(args,
                        target_indexing=target_indexing,
-                       vocab_size=len(numericalizer.vocab))
+                       tokenizer=train_corpus.tokenizer)
 
     print("running on: ", device)
 
