@@ -36,7 +36,7 @@ class MedMentionsCorpus:
         self.tokenizer = tokenizer
         self.tokenization = tokenizer.tokenization
         self._init_documents()
-        self.n_documents = len(self.documents)
+        self.n_documents = len(self.document_list)
 
         self.cuids, self.stids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
@@ -50,7 +50,7 @@ class MedMentionsCorpus:
         cuids = {}
         stids = {}
         vocab = set()
-        for document in self.documents:
+        for document in self.document_list:
             for entity in document.umls_entities:
                 if entity.concept_ID in cuids:
                     cuids[entity.concept_ID] += 1
@@ -64,7 +64,7 @@ class MedMentionsCorpus:
         return cuids, stids, vocab
 
     def _init_documents(self):
-        self.documents = []
+        self.document_list = []
         while self._currentfile < len(self._filenames):
             # opening the file -- not using `with` because
             # it causes excessive indentation
@@ -84,9 +84,9 @@ class MedMentionsCorpus:
                     umls_entities.append(next_line[:-1])
                     next_line = f.readline()
 
-                self.documents.append(MedMentionsDocument(title, abstract,
-                                                          umls_entities,
-                                                          self.tokenizer))
+                self.document_list.append(MedMentionsDocument(title, abstract,
+                                                              umls_entities,
+                                                              self.tokenizer))
             f.close()
 
             self._currentfile += 1
@@ -102,7 +102,7 @@ class MedMentionsCorpus:
         # This is not an infinite loop, it's a do/while statement.
         # Blame the BDFL.
         while True:
-            for document in self.documents:
+            for document in self.document_list:
                 yield document
             if not self._looping:
                 break
