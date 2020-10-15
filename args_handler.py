@@ -3,7 +3,7 @@ import sys
 import torch
 import torch_optimizer
 
-from util import TokenType
+from tokenizer import TokenType
 
 
 def parse_args(argv, args):
