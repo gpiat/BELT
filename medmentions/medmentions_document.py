@@ -1,7 +1,6 @@
 import itertools
 
 from diff_match_patch import diff_match_patch
-from util import TokenType
 
 
 def text_preprocess(text):
@@ -73,13 +72,12 @@ class MedMentionsDocument:
         # no space is insterted between title and abstract to match up
         # with MedMentions PubTator format.
         self.raw_text = self.title + '\n' + self.abstract
+        self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
         self.tokenizer = tokenizer
         self.text = self.tokenizer.tokenize(self.raw_text)
         self.tokenization = tokenizer.tokenization
-        self.targets = self._initialize_targets()
-
-        self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
+        self._initialize_targets()
 
         # list of all start and end indices of all entities
         # originally the stop index is exclusive, but we need it
@@ -100,7 +98,6 @@ class MedMentionsDocument:
                 elif i > e.stop_idx:
                     continue
 
-        self.targets = []
         token = iter(self.text)
         concat_tokens = ''.join(self.text)
         dmp = diff_match_patch()
@@ -133,21 +130,37 @@ class MedMentionsDocument:
         diff = list(itertools.chain(*[[flag] * len(sub_str)
                                       for flag, sub_str in diff]))
 
+        # initializing the targets for each token as None
         token_targets = [None] * len(self.text)
+        # This helps us keep track of where we are within the current token
+        # so that we know when to move on to the next token
         chars_left_in_current_token = len(next(token))
-        current_char_index = 0
+        # Index of the currently tracked character in the raw_text, which
+        # always refers (if possible) to the same character as the character
+        # defined by chars_left_in_current_token. I'm not completely certain
+        # why it needs to start at -1 rather than 0, it just works.
+        current_char_index = -1
         current_token_index = 0
         for flag in diff:
+            # hypothetically, we can choose any time to assign the
+            # token's label but we choose to do so when we're on the
+            # last character of the current token.
             if chars_left_in_current_token == 0:
                 token_targets[current_token_index] =\
                     char_level_targets[current_char_index]
                 current_token_index += 1
                 chars_left_in_current_token = len(next(token))
+            # we're pointing to the same character in both the
+            # raw_text and the tokenized text, so update both
+            # pointers for the next iteration
             if flag == 0:
                 current_char_index += 1
                 chars_left_in_current_token -= 1
+            # we're on a character missing in the tokenized text,
+            # so we skip it
             elif flag == -1:
                 current_char_index += 1
+            # we're on a character missing in the raw_text, so we skip it
             else:
                 chars_left_in_current_token -= 1
         self.char_level_targets = char_level_targets
