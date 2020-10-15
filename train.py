@@ -44,7 +44,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
     total_loss = 0.
     start_time = time.time()
     for doc_idx, document in enumerate(corpus.documents()):
-        # print("doc index: {}".format(doc_idx))
         padded_text = pad(document.text, window_size, overlap,
                           batch_size=batch_size,
                           pad_token=model.tokenizer.pad_token)
@@ -52,7 +51,6 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
-        # print(targets.dtype)
         data = torch.zeros(batch_size,
                            window_size,
                            dtype=torch.long).to(device)
@@ -250,7 +248,7 @@ if __name__ == '__main__':
         # print("starting training epoch {}".format(epoch))
         train(model, train_corpus, target_finder,
               target_indexing, optimizer, scheduler,
-              numericalizer, batch_size=args["--batch_size"],
+              batch_size=args["--batch_size"],
               overlap=args['--overlap'], epoch=epoch)
         # print("end epoch {}".format(epoch))
 
@@ -260,7 +258,6 @@ if __name__ == '__main__':
                                       train_corpus,
                                       target_finder,
                                       target_indexing,
-                                      numericalizer,
                                       args['--overlap'],
                                       compute_mntn_p_r_f1=True,
                                       compute_doc_p_r_f1=True)
@@ -274,7 +271,6 @@ if __name__ == '__main__':
                                     dev_corpus,
                                     target_finder,
                                     target_indexing,
-                                    numericalizer,
                                     args['--overlap'],
                                     compute_mntn_p_r_f1=True,
                                     compute_doc_p_r_f1=True)
