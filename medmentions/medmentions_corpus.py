@@ -22,7 +22,7 @@ class MedMentionsCorpus:
         documents with the documents() generator function.
     """
 
-    def __init__(self, fnames, tokenizer, auto_looping=False):
+    def __init__(self, fnames, tokenizer):
         """ Args:
                 - fnames (list<str>): list of filenames in the corpus
                 - auto_looping (bool): whether retrieving documents should
@@ -31,7 +31,6 @@ class MedMentionsCorpus:
 
         self._filenames = fnames
         self._currentfile = 0
-        self._looping = auto_looping
 
         self.tokenizer = tokenizer
         self.tokenization = tokenizer.tokenization
@@ -92,17 +91,12 @@ class MedMentionsCorpus:
             self._currentfile += 1
 
     def documents(self):
-        """ Yields:
+        """ Yields a document containing:
                 - pmid (str): the next document's PMID
                 - title (str): the next document's title
                 - abstract (str): the next document's abstract
                 - umls_entities (list<str>): list of UMLS entities
                     for the next document
         """
-        # This is not an infinite loop, it's a do/while statement.
-        # Blame the BDFL.
-        while True:
-            for document in self.document_list:
-                yield document
-            if not self._looping:
-                break
+        for document in self.document_list:
+            yield document

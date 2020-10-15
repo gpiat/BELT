@@ -104,11 +104,9 @@ def pickle_corpora(fnames):
         expensive) when running many experiments on the same corpus.
     """
     tokenizer = get_tokenizer(fnames['--tokenization'], fnames['--vocab_file'])
-    train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']],
-                                     tokenizer, auto_looping=True)
+    train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']], tokenizer)
     val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']], tokenizer)
-    test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']],
-                                    tokenizer, auto_looping=True)
+    test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']], tokenizer)
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
