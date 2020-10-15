@@ -37,13 +37,15 @@ def UMLS_concepts_init(fnames, corpora=None,
             - (int) dflt_cat_thresh: any CUID that appears fewer times than
                 this threshold is put in a "default" category.
     """
-    if corpora is None:
-        corpora = [fnames["--full_corpus_fname"]]
-    corpus = MedMentionsCorpus(corpora,
-                               tokenization=fnames["--tokenization"])
-    umls_concepts = _UMLS_concepts_initializer(corpus, dflt_cat_thresh)
-    with open(fnames["--umls_fname"], 'wb') as f:
-        pickle.dump(umls_concepts, f)
+    # TODO: load existing corpus instead of creating it
+    # if corpora is None:
+    #     corpora = [fnames["--full_corpus_fname"]]
+    # corpus = MedMentionsCorpus(corpora,
+    #                            tokenization=fnames["--tokenization"])
+    # umls_concepts = _UMLS_concepts_initializer(corpus, dflt_cat_thresh)
+    # with open(fnames["--umls_fname"], 'wb') as f:
+    #     pickle.dump(umls_concepts, f)
+    pass
 
 
 def semantic_types_init(fnames, corpora=None):
@@ -55,15 +57,17 @@ def semantic_types_init(fnames, corpora=None):
             - (list<str>) corpora: filenames of the PubTator-format
                 corpora to use. All the CUIDs used come from these corpora.
     """
-    if corpora is None:
-        corpora = [fnames["--full_corpus_fname"]]
-    corpus = MedMentionsCorpus(corpora)
-    semantic_types = {stid: (index + 1)
-                      for index, (stid, _) in
-                      enumerate(corpus.stids.items())}
-    semantic_types[None] = 0
-    with open(fnames["--st21_fname"], 'wb') as f:
-        pickle.dump(semantic_types, f)
+    # TODO: load existing corpus instead of creating it
+    # if corpora is None:
+    #     corpora = [fnames["--full_corpus_fname"]]
+    # corpus = MedMentionsCorpus(corpora)
+    # semantic_types = {stid: (index + 1)
+    #                   for index, (stid, _) in
+    #                   enumerate(corpus.stids.items())}
+    # semantic_types[None] = 0
+    pass
+    # with open(fnames["--st21_fname"], 'wb') as f:
+    #     pickle.dump(semantic_types, f)
 
 
 def create_corpora(fnames):
@@ -131,6 +135,7 @@ if __name__ == '__main__':
         if "--dct" in argv:
             # number that (hopefully) comes after "--dct" in argv
             dct = int(argv[argv.index("--dct") + 1])
+    if "--init_kb" in argv:
         UMLS_concepts_init(fnames=args, dflt_cat_thresh=dct)
         semantic_types_init(fnames=args)
 
