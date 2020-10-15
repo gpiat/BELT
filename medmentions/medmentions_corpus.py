@@ -35,9 +35,10 @@ class MedMentionsCorpus:
 
         self.tokenizer = tokenizer
         self.tokenization = tokenizer.tokenization
+        self._init_documents()
+        self.n_documents = len(self.documents)
 
-        (self.n_documents, self.cuids, self.stids,
-         self.vocab) = self._get_cuids_and_vocab()
+        self.cuids, self.stids, self.vocab = self._get_cuids_and_vocab()
         self.nconcepts = len(self.cuids)
 
     def _get_cuids_and_vocab(self):
@@ -49,9 +50,7 @@ class MedMentionsCorpus:
         cuids = {}
         stids = {}
         vocab = set()
-        n_documents = 0
-        for document in self.documents():
-            n_documents += 1
+        for document in self.documents:
             for entity in document.umls_entities:
                 if entity.concept_ID in cuids:
                     cuids[entity.concept_ID] += 1
@@ -61,19 +60,11 @@ class MedMentionsCorpus:
                     stids[entity.semantic_type_ID] += 1
                 else:
                     stids[entity.semantic_type_ID] = 1
-            for word in document.text:
-                vocab.add(word)
-        self.loop_documents()
-        return n_documents, cuids, stids, vocab
+            vocab = vocab.union(document.get_vocab())
+        return cuids, stids, vocab
 
-    def documents(self):
-        """ Yields:
-                - pmid (str): the next document's PMID
-                - title (str): the next document's title
-                - abstract (str): the next document's abstract
-                - umls_entities (list<str>): list of UMLS entities
-                    for the next document
-        """
+    def _init_documents(self):
+        self.documents = []
         while self._currentfile < len(self._filenames):
             # opening the file -- not using `with` because
             # it causes excessive indentation
@@ -93,18 +84,25 @@ class MedMentionsCorpus:
                     umls_entities.append(next_line[:-1])
                     next_line = f.readline()
 
-                yield MedMentionsDocument(title, abstract,
-                                          umls_entities,
-                                          self.tokenizer)
+                self.documents.append(MedMentionsDocument(title, abstract,
+                                                          umls_entities,
+                                                          self.tokenizer))
             f.close()
 
             self._currentfile += 1
-            if self._currentfile >= len(self._filenames) and self._looping:
-                self.loop_documents()
-                return
 
-    def loop_documents(self):
-        """ Restarts the document file counter. This only takes
-            effect after the file currently being read ends.
+    def documents(self):
+        """ Yields:
+                - pmid (str): the next document's PMID
+                - title (str): the next document's title
+                - abstract (str): the next document's abstract
+                - umls_entities (list<str>): list of UMLS entities
+                    for the next document
         """
-        self._currentfile = 0
+        # This is not an infinite loop, it's a do/while statement.
+        # Blame the BDFL.
+        while True:
+            for document in self.documents:
+                yield document
+            if not self._looping:
+                break
