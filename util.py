@@ -132,10 +132,8 @@ def CUID_target_finder(document,
                 CUIDs to their corresponding indices in the
                 prediction vector for the token.
     """
-    return [umls_concepts[cuid] for cuid in
-            document.get_mention_ids(start_index,
-                                     end_index,
-                                     mode="cuid")]
+    return [umls_concepts[cuid] for cuid, _ in
+            document.targets[start_index, end_index]]
 
 
 def semtype_target_finder(document,
@@ -151,10 +149,8 @@ def semtype_target_finder(document,
                 STIDs to their corresponding indices in the
                 prediction vector for the token.
     """
-    return [sem_types[stid] for stid in
-            document.get_mention_ids(start_index,
-                                     end_index,
-                                     mode="semtype")]
+    return [sem_types[stid] for _, stid in
+            document.targets[start_index, end_index]]
 
 
 def binary_target_finder(document,
@@ -170,9 +166,8 @@ def binary_target_finder(document,
                 CUIDs to their corresponding indices in the
                 prediction vector for the token.
     """
-    targets = CUID_target_finder(document, start_index,
-                                 end_index, umls_concepts)
-    return [min(i, 1) for i in targets]
+    return [int(i is not None) for i in
+            document.targets[start_index, end_index]]
 
 
 def set_targets(target_type):

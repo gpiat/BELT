@@ -85,15 +85,12 @@ class MedMentionsDocument:
         self.start_end_indices = list(itertools.chain(
             [(e.start_idx - 1, e.stop_idx - 1) for e in self.umls_entities]))
 
-    def _initialize_targets(self, mode="cuid"):
+    def _initialize_targets(self):
         char_level_targets = [None] * len(self.raw_text)
         for i in range(len(char_level_targets)):
             for e in self.umls_entities:
                 if i >= e.start_idx and i < e.stop_idx:
-                    if mode == "cuid":
-                        char_level_targets[i] = e.concept_ID
-                    else:
-                        char_level_targets[i] = e.semantic_type_ID
+                    char_level_targets[i] = e.concept_ID, e.semantic_type_ID
                     continue
                 elif i > e.stop_idx:
                     continue
