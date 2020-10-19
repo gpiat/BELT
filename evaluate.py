@@ -182,7 +182,15 @@ def predict(model, document, target_finder, label_to_idx, overlap):
         e_idx = min(len(text), window_size + i)
         data = get_text_window(text, window_size, s_idx, e_idx)
 
-        target = target_finder(document, i, i + window_size, label_to_idx)
+        # The `target` list must be of same dimensions as model output, so
+        # it must have window_size items and must thus be padded, matching
+        # the text. Here we initialize the targets to the right size, and
+        # overwrite only the elements we get.
+        target = [0 for _ in range(window_size)]
+        target_found = target_finder(document,
+                                     i, i + window_size,
+                                     label_to_idx)
+        target[:len(target_found)] = target_found
 
         output = model(data.unsqueeze(0))
 
