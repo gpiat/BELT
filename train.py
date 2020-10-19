@@ -100,7 +100,16 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
 
             target = target_finder(document, start_index,
                                    end_index, target_indexing)
-            targets[i % batch_size] = torch.Tensor(target).to(device)
+            print("start_index: {} ; end_index: {}".format(
+                start_index, end_index))
+            print("target: ", target)
+            target_tensor = torch.Tensor(target).to(device)
+            print("target as Tensor: ", target_tensor)
+            print("target size: {} ; Tensor size: {}".format(
+                len(target), target_tensor.size()))
+            print("i: {} ; batch_size: {}, i % batch_size: {}".format(
+                i, batch_size, i % batch_size))
+            targets[i % batch_size] = target_tensor
 
             # the fact that we do this processing only every batch_size
             # steps means that we don't do it if the remainder of the
