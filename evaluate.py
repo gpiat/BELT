@@ -172,7 +172,6 @@ def predict(model, document, target_finder, label_to_idx, overlap):
     """
     window_size = model.phrase_len
     document_tagged = []
-    document_targets = []
     text = model.tokenizer.encode(pad(document.text,
                                       window_size,
                                       overlap))
@@ -218,13 +217,12 @@ def predict(model, document, target_finder, label_to_idx, overlap):
         # when dealing with argmax.
         document_tagged += [int(torch.argmax(output[j]))
                             for j in range(start, stop)]
-        document_targets.extend([target[j] for j in range(start, stop)])
         target = torch.Tensor(target).to(cst.device)
 
         loss_increment = (
             len(data) * cst.criterion(output,
                                       target.unsqueeze(1).long()).item())
-    return document_tagged, document_targets, loss_increment
+    return document_tagged, loss_increment
 
 
 def evaluate(model, corpus, target_finder, label_to_idx,
@@ -261,12 +259,17 @@ def evaluate(model, corpus, target_finder, label_to_idx,
     text_targets = []
     with torch.no_grad():
         for document in corpus.documents():
-            document_tagged, document_targets, loss_increment =\
+            document_tagged, loss_increment =\
                 predict(model, document, target_finder,
                         label_to_idx, txt_window_overlap)
             total_loss += loss_increment
+
+            # document_tagged and document_targets are lists
+            #    (size: n_tokens)
+            # text_tagged and text_targets are lists of lists
+            #    (size: n_doc x n_tok)
             text_tagged.append(document_tagged)
-            text_targets.append(document_targets)
+            text_targets.append(document.targets)
 
     loss = total_loss / (corpus.n_documents - 1)
     return_val = (loss,)
