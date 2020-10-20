@@ -23,9 +23,13 @@ val_fname = pkl_prefix + "val.pkl"
 test_fname = pkl_prefix + "test.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
-# this is the vocabulary file for the BERT tokenizer
-vocab_file = 'bert-base-cased'
-
 wd = os.getcwd() + '/'
 train_stats_fname = "/train_stats.csv"
 model_fname = "model.pkl"
+
+# this is the vocabulary file for the BERT tokenizer
+bert_vocab_file = 'bert-base-cased'
+bert_model_file = bert_vocab_file
+biobert_vocab_file = "dmis-lab/biobert-v1.1"
+biobert_model_file = biobert_vocab_file
+vocab_file = bert_vocab_file

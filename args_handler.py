@@ -47,6 +47,7 @@ def get_train_args(argv):
         '--window_size': 20,
         '--batch_size': 35,
         '--overlap': 0.2,
+        '--pretrained': False,
         # target type can be "bin" for pure entity identification,
         # "semtype" for semantic type IDs
         # or "cuid" for UMLS Concept Unique Identifiers
