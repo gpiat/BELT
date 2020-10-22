@@ -309,11 +309,11 @@ if __name__ == '__main__':
         with torch.no_grad():
             print("number of documents: ", test_corpus.n_documents)
             for document in test_corpus.documents():
-                document_tagged, document_targets, _ =\
+                document_tagged, _ =\
                     predict(best_model, document, target_finder,
                             umls_cuid_to_idx, args['--overlap'])
                 document_tagged = cuid_list_to_ranges(document_tagged)
-                document_targets = cuid_list_to_ranges(document_targets)
+                document_targets = cuid_list_to_ranges(document.targets)
                 for i in document_tagged:
                     # inserting the PMID at the beginning of each range
                     i.insert(0, document.pmid)
