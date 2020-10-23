@@ -140,10 +140,22 @@ def get_token_prec_rec_f1(predictions, targets):
     for i in range(len(predictions)):
         pred_i = torch.Tensor(predictions[i])
         target_i = torch.Tensor(targets[i])
-        tp += np.logical_and(pred_i, target_i).sum()
+        # a true positive is when the prediction matches the target AND
+        # a positive was predicted (i.e. not  0)
+        tp += np.logical_and(np.equal(pred_i, target_i),
+                             np.not_equal(pred_i,
+                                          np.zeros_like(pred_i))).sum()
+        # a true negative is when both the target and the prediction
+        # are negatives
         tn += np.logical_and(np.logical_not(pred_i),
                              np.logical_not(target_i)).sum()
-        fp += np.logical_and(pred_i, np.logical_not(target_i)).sum()
+        # a false positive is when the prediction does not match the
+        # target AND a positive was predicted (i.e. not  0)
+        fp += np.logical_and(np.not_equal(pred_i, target_i),
+                             np.not_equal(pred_i,
+                                          np.zeros_like(pred_i))).sum()
+        # a false negative is when a negative was predicted AND
+        # the target is anything but a negative
         fn += np.logical_and(np.logical_not(pred_i), target_i).sum()
     # tp fp fn and tn are now single element tensors,
     # we must cast them back to ints
