@@ -5,6 +5,7 @@ import pickle
 import sys
 import time
 import torch
+import warnings
 
 from args_handler import get_train_args
 from args_handler import select_optimizer
@@ -47,7 +48,12 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         padded_text = pad(document.text, window_size, overlap,
                           batch_size=batch_size,
                           pad_token=model.tokenizer.pad_token)
-        text = model.tokenizer.encode(padded_text)
+        # here huggingface may tell us that the sequence is too long
+        # to pass on to BERT as is. We do not care about this as
+        # we cut the text into batches afterwards.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            text = model.tokenizer.encode(padded_text)
         targets = torch.zeros(batch_size,
                               window_size,
                               dtype=torch.long).to(device)
@@ -235,7 +241,12 @@ if __name__ == '__main__':
     best_val_loss = float("inf")
     with open(args['--writepath'] +
               args['--model_fname'], 'wb') as model_file:
-        torch.save(model, model_file)
+        # here pytorch warns us that it cannot perform sanity
+        # checks on the model's source code, which we don't really
+        # care about, so we ignore them.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            torch.save(model, model_file)
     best_model = None
     if '--resume' not in argv:
         column_headers = [["time", "train loss", "validation loss",
@@ -308,6 +319,11 @@ if __name__ == '__main__':
             best_model = model
             with open(args['--writepath'] +
                       args['--model_fname'], 'wb') as model_file:
-                torch.save(best_model, model_file)
+                # here pytorch warns us that it cannot perform sanity
+                # checks on the model's source code, which we don't really
+                # care about, so we ignore them.
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    torch.save(best_model, model_file)
         print("scheduler step")
         scheduler.step()
