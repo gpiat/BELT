@@ -313,7 +313,10 @@ if __name__ == '__main__':
                     predict(best_model, document, target_finder,
                             umls_cuid_to_idx, args['--overlap'])
                 document_tagged = cuid_list_to_ranges(document_tagged)
-                document_targets = cuid_list_to_ranges(document.targets)
+                document_targets = target_finder(document, 0,
+                                                 len(document.targets),
+                                                 umls_cuid_to_idx)
+                document_targets = cuid_list_to_ranges(document_targets)
                 for i in document_tagged:
                     # inserting the PMID at the beginning of each range
                     i.insert(0, document.pmid)
