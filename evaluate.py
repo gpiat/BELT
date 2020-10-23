@@ -289,7 +289,9 @@ def evaluate(model, corpus, target_finder, label_to_idx,
             # text_tagged and text_targets are lists of lists
             #    (size: n_doc x n_tok)
             text_tagged.append(document_tagged)
-            text_targets.append(document.targets)
+            text_targets.append(target_finder(document, 0,
+                                              len(document.targets),
+                                              umls_cuid_to_idx))
 
     loss = total_loss / (corpus.n_documents - 1)
     return_val = (loss,)
