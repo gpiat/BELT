@@ -222,6 +222,66 @@ def load_files(args):
     return train_corpus, target_indexing, dev_corpus
 
 
+def evaluate_model_performance(model, train_corpus, target_finder,
+                               target_indexing, args, dev_corpus):
+    (train_loss,
+     train_mention_p_r_f1,
+     train_doc_p_r_f1) = evaluate(model,
+                                  train_corpus,
+                                  target_finder,
+                                  target_indexing,
+                                  args['--overlap'],
+                                  compute_mntn_p_r_f1=True,
+                                  compute_doc_p_r_f1=True)
+
+    (val_loss,
+     val_mention_p_r_f1,
+     val_doc_p_r_f1) = evaluate(model,
+                                dev_corpus,
+                                target_finder,
+                                target_indexing,
+                                args['--overlap'],
+                                compute_mntn_p_r_f1=True,
+                                compute_doc_p_r_f1=True)
+
+    print('-' * 89)
+    try:
+        valid_ppl = math.exp(val_loss)
+    except OverflowError:
+        print("validation ppl too large to compute")
+        valid_ppl = "NA"
+    current_epoch_info = [str(time.time() - epoch_start_time),
+                          str(train_loss),
+                          str(val_loss),
+                          str(valid_ppl),
+                          *train_mention_p_r_f1,
+                          *train_doc_p_r_f1,
+                          *val_mention_p_r_f1,
+                          *val_doc_p_r_f1]
+    print(current_epoch_info)
+    print('-' * 89)
+    return current_epoch_info, val_loss
+
+
+def write_results_to_file(current_epoch_info, args):
+    # write epoch info at every epoch
+    with open((args["--writepath"] +
+               cst.train_stats_fname), 'a') as train_stats_file:
+        writer = csv.writer(train_stats_file, delimiter=';')
+        writer.writerow(current_epoch_info)
+
+
+def write_model_to_file(model, args):
+    with open(args['--writepath'] +
+              args['--model_fname'], 'wb') as model_file:
+        # here pytorch warns us that it cannot perform sanity
+        # checks on the model's source code, which we don't really
+        # care about, so we ignore them.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            torch.save(model, model_file)
+
+
 if __name__ == '__main__':
     args = get_train_args(argv)
     target_finder = set_targets(args['--target_type'])
@@ -238,7 +298,7 @@ if __name__ == '__main__':
         option=args['--optim'].lower(), model=model, lr=args['--lr'])
 
     # start train
-    best_val_loss = float("inf")
+    best_loss = float("inf")
     with open(args['--writepath'] +
               args['--model_fname'], 'wb') as model_file:
         # here pytorch warns us that it cannot perform sanity
@@ -265,6 +325,17 @@ if __name__ == '__main__':
     for epoch in range(args['--epochs']):
         # TODO: figure out why this loop never stops
         epoch_start_time = time.time()
+
+        current_epoch_info, loss =\
+            evaluate_model_performance(model, train_corpus,
+                                       target_finder,
+                                       target_indexing,
+                                       args, dev_corpus)
+        write_results_to_file(current_epoch_info, args)
+        if loss < best_loss:
+            best_loss = loss
+            best_model = model
+            write_model_to_file(best_model, args)
         # print("starting training epoch {}".format(epoch))
         train(model, train_corpus, target_finder,
               target_indexing, optimizer, scheduler,
@@ -272,58 +343,16 @@ if __name__ == '__main__':
               overlap=args['--overlap'], epoch=epoch)
         # print("end epoch {}".format(epoch))
 
-        (train_loss,
-         train_mention_p_r_f1,
-         train_doc_p_r_f1) = evaluate(model,
-                                      train_corpus,
-                                      target_finder,
-                                      target_indexing,
-                                      args['--overlap'],
-                                      compute_mntn_p_r_f1=True,
-                                      compute_doc_p_r_f1=True)
-
-        (val_loss,
-         val_mention_p_r_f1,
-         val_doc_p_r_f1) = evaluate(model,
-                                    dev_corpus,
-                                    target_finder,
-                                    target_indexing,
-                                    args['--overlap'],
-                                    compute_mntn_p_r_f1=True,
-                                    compute_doc_p_r_f1=True)
-
-        print('-' * 89)
-        try:
-            valid_ppl = math.exp(val_loss)
-        except OverflowError:
-            print("validation ppl too large to compute")
-            valid_ppl = "NA"
-        current_epoch_info = [str(time.time() - epoch_start_time),
-                              str(train_loss),
-                              str(val_loss),
-                              str(valid_ppl),
-                              *train_mention_p_r_f1,
-                              *train_doc_p_r_f1,
-                              *val_mention_p_r_f1,
-                              *val_doc_p_r_f1]
-        print(current_epoch_info)
-        print('-' * 89)
-        # write epoch info at every epoch
-        with open((args["--writepath"] +
-                   cst.train_stats_fname), 'a') as train_stats_file:
-            writer = csv.writer(train_stats_file, delimiter=';')
-            writer.writerow(current_epoch_info)
-
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            best_model = model
-            with open(args['--writepath'] +
-                      args['--model_fname'], 'wb') as model_file:
-                # here pytorch warns us that it cannot perform sanity
-                # checks on the model's source code, which we don't really
-                # care about, so we ignore them.
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    torch.save(best_model, model_file)
         print("scheduler step")
         scheduler.step()
+
+    final_epoch_info, loss =\
+        evaluate_model_performance(model, train_corpus,
+                                   target_finder,
+                                   target_indexing,
+                                   args, dev_corpus)
+    write_results_to_file(final_epoch_info, args)
+    if loss < best_loss:
+        best_loss = loss
+        best_model = model
+        write_model_to_file(best_model, args)
