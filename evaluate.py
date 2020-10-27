@@ -184,9 +184,14 @@ def predict(model, document, target_finder, label_to_idx, overlap):
     """
     window_size = model.phrase_len
     document_tagged = []
-    text = model.tokenizer.encode(pad(document.text,
-                                      window_size,
-                                      overlap))
+    # here huggingface may tell us that the sequence is too long
+    # to pass on to BERT as is. We do not care about this as
+    # we cut the text into batches afterwards.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        text = model.tokenizer.encode(pad(document.text,
+                                          window_size,
+                                          overlap))
 
     increment = round((1 - (overlap / 2)) * window_size)
     for i in range(0, len(text), increment):
