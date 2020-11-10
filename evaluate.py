@@ -297,7 +297,7 @@ def evaluate(model, corpus, target_finder, label_to_idx,
             text_tagged.append(document_tagged)
             text_targets.append(target_finder(document, 0,
                                               len(document.targets),
-                                              umls_cuid_to_idx))
+                                              label_to_idx))
             # adding padding to the targets
             text_targets[-1].extend([0] * (len(text_tagged[-1]) -
                                            len(text_targets[-1])))
