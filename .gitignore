@@ -5,3 +5,4 @@ runs/*
 stats/*
 .directory
 *tsv*/*
+.ipynb_checkpoints/*
