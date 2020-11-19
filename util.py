@@ -114,11 +114,11 @@ def load_model(args, target_indexing, tokenizer=None):
     #     from transformers import AutoModel
     #     model = AutoModel.from_pretrained(args['--model_fname'])
     else:
-        model = BELT(tokenizer=tokenizer,
-                     n_classes=n_classes,
-                     embed_size=200, nhead=2, nhid=200,
-                     nlayers=2, phrase_len=args['--window_size'],
-                     dropout=0.2).to(device)
+        model = BELT(tokenizer=tokenizer, n_classes=n_classes,
+                     embed_size=args['--embed_size'], nhead=args['--nhead'],
+                     nhid=args['--nhid'], nlayers=args['--nlayers'],
+                     phrase_len=args['--window_size'],
+                     dropout=args['--dropout']).to(device)
     return model
 
 

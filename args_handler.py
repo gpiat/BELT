@@ -4,6 +4,7 @@ import torch
 import torch_optimizer
 
 from tokenizer import TokenType
+from torch.optim.lr_scheduler import StepLR
 
 
 def parse_args(argv, args):
@@ -24,13 +25,23 @@ def parse_args(argv, args):
                 # would then set args['--debug'] to True.
                 args[argv[i]] = not args[argv[i]]
             else:
+                # getting the type of the argument
+                # so we can cast the string later
+                arg_type_cast = type(args[argv[i]])
                 # non boolean arguments of the form --window_size
                 # are necessarily followed by a value.
                 # `script --window_size 25` => args['--window_size']: 25
                 try:
-                    args[argv[i]] = argv[i + 1]
+                    args[argv[i]] = arg_type_cast(argv[i + 1])
                 except IndexError:
                     print("Error: no value specified for ", argv[i])
+                    print("Attempting to continue with default value")
+                except (TypeError, ValueError) as e:
+                    print("warning: got error while processing arguments:")
+                    print(e)
+                    print("assuming this is handled in"
+                          " appropriate get_*_args method")
+                    args[argv[i]] = argv[i + 1]
         i += 1
 
 
@@ -42,24 +53,34 @@ def get_train_args(argv):
         '--writepath': cst.wd,
         '--resume': False,
         '--epochs': 10,
-        '--optim': "SGD",
-        '--lr': 5,
+        '--optim': "adam",
+        '--lr': 5,  # only useful for SGD
+        # TODO: make None default learning rate and add an
+        #       "if lr is None lr = x" statement for each optimizer
         '--window_size': 20,
-        '--batch_size': 35,
+        '--batch_size': 8,
         '--overlap': 0.2,
-        '--pretrained': False,
+        '--pretrained': False,  # TODO: useless as of now, may be deleted
         # target type can be "bin" for pure entity identification,
         # "semtype" for semantic type IDs
         # or "cuid" for UMLS Concept Unique Identifiers
-        '--target_type': 'cuid'
+        '--target_type': 'cuid',
+        '--embed_size': 200,  # size of embeddings
+        '--nhead': 4,  # number of attention heads
+        '--nhid': 250,  # dimension of the FFNN in the encoder
+        '--nlayers': 4,  # number of `TransformerEncoderLayer`s in the encoder
+        '--dropout': 0.1  # dropout value for `TransformerEncoderLayer`s
     }
 
     parse_args(argv, args)
-    args['--epochs'] = int(args['--epochs'])
-    args['--lr'] = float(args['--lr'])
-    args['--window_size'] = int(args['--window_size'])
-    args['--batch_size'] = int(args['--batch_size'])
-    args['--overlap'] = float(args['--overlap'])
+    # Commented out the following because I realized I could
+    #    probably automate it thanks to everything in python
+    #    being an object, even functions and object types.
+    # args['--epochs'] = int(args['--epochs'])
+    # args['--lr'] = float(args['--lr'])
+    # args['--window_size'] = int(args['--window_size'])
+    # args['--batch_size'] = int(args['--batch_size'])
+    # args['--overlap'] = float(args['--overlap'])
 
     if args['--target_type'] not in ["bin", "semtype", "cuid"]:
         help(args, "Invalid target type")
@@ -121,7 +142,7 @@ def get_evaluate_args(argv):
         '--overlap': 0.2
     }
     parse_args(argv, args)
-    args['--overlap'] = float(args['--overlap'])
+    # args['--overlap'] = float(args['--overlap'])
     return args
 
 
@@ -130,26 +151,26 @@ def select_optimizer(option, model, lr):
 
     if option == "adam":
         optimizer = torch.optim.Adam(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "radam":
         optimizer = torch_optimizer.RAdam(model.parameters(),
                                           lr=0.001,
                                           betas=(0.9, 0.999),
                                           eps=1e-8,
                                           weight_decay=0)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adamw":
         optimizer = torch.optim.AdamW(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adamax":
         optimizer = torch.optim.Adamax(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adagrad":
         optimizer = torch.optim.Adagrad(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adadelta":
         optimizer = torch.optim.Adadelta(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adabound":
         optimizer = torch_optimizer.AdaBound(
             model.parameters(),
@@ -161,19 +182,19 @@ def select_optimizer(option, model, lr):
             weight_decay=0,
             amsbound=False,
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "sparseadam":
         optimizer = torch.optim.SparseAdam(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "lbfgs":
         optimizer = torch.optim.LBFGS(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "rmsprop":
         optimizer = torch.optim.RMSprop(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "rprop":
         optimizer = torch.optim.Rprop(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "lamb":
         optimizer = torch_optimizer.Lamb(
             model.parameters(),
@@ -182,10 +203,10 @@ def select_optimizer(option, model, lr):
             eps=1e-8,
             weight_decay=0,
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.8)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "asgd":
         optimizer = torch.optim.ASGD(model.parameters())
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "accsgd":
         optimizer = torch_optimizer.AccSGD(
             model.parameters(),
@@ -195,7 +216,7 @@ def select_optimizer(option, model, lr):
             small_const=0.7,
             weight_decay=0
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "sgdw":
         optimizer = torch_optimizer.SGDW(
             model.parameters(),
@@ -205,12 +226,12 @@ def select_optimizer(option, model, lr):
             weight_decay=1e-2,
             nesterov=False,
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10.0, gamma=0.2)
+        scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "sgd":
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                                    10.0,
-                                                    gamma=0.01)
+        scheduler = StepLR(optimizer,
+                           10.0,
+                           gamma=0.01)
     else:
         raise TypeError("optimizer name not recognized")
     return optimizer, scheduler
