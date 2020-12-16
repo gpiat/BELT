@@ -1,6 +1,8 @@
 import itertools
-
+import nltk
 from diff_match_patch import diff_match_patch
+
+nltk.download('punkt')
 
 
 def text_preprocess(text):
@@ -73,6 +75,19 @@ class MedMentionsDocument:
         # with MedMentions PubTator format.
         self.raw_text = self.title + '\n' + self.abstract
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
+
+        sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+        self.sentences = self.raw_text.split('\n')
+        # self.sentences is now of the form ['Title', 'Abstract. Stuff.']
+        self.sentences.extend(sentence_tokenizer.tokenize(self.sentences[1]))
+        # self.sentences is now of the form
+        # ['Title', 'Abstract. Stuff.', 'Abstract.', 'Stuff.']
+        del self.sentences[1]
+        # self.sentences is now of the form ['Title', 'Abstract.', 'Stuff.']
+        self.sentences = [self.tokenizer.tokenize(sentence)
+                          for sentence in self.sentences]
+        # for example, if tokenization is wordpiece, self.sentences is now
+        # of the form [['Title'], ['Abs', '##tract', '.'], ['Stuff', '.']]
 
         self.tokenizer = tokenizer
         self.text = self.tokenizer.tokenize(self.raw_text)
@@ -177,3 +192,17 @@ class MedMentionsDocument:
             for entity in self.umls_entities:
                 f.write(str(entity) + '\n')
             f.write('\n')
+
+    def sentence_targets(self):
+        """ The targets are a single list with one element per (sub)token.
+            In case the targets are needed and must be formatted the same
+            as sentences, this generator will extract the relevant sublists
+            on-the-fly.
+            This assumes that the sentence parser doesn't split two sentences
+            in the middle of a (sub)token.
+        """
+        start = 0
+        for sentence in self.sentences:
+            end = start + len(sentence)
+            start = end
+            yield self.targets[start:end]
