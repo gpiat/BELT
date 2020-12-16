@@ -90,33 +90,50 @@ def get_train_args(argv):
 
 
 def get_corpus_init_args(argv):
-    args = {
-        "--full_corpus_fname": cst.full_corpus_fname,
-        "--train_corpus_pmids": cst.train_corpus_pmids,
-        "--val_corpus_pmids": cst.val_corpus_pmids,
-        "--test_corpus_pmids": cst.test_corpus_pmids,
+    arglist = [
+        ("--full_corpus_fname", cst.full_corpus_fname,
+            ""),
+        ("--train_corpus_pmids", cst.train_corpus_pmids,
+            ""),
+        ("--val_corpus_pmids", cst.val_corpus_pmids,
+            ""),
+        ("--test_corpus_pmids", cst.test_corpus_pmids,
+            ""),
 
         # create_corpora specific
-        "--med_corpus_train": cst.med_corpus_train,
-        "--med_corpus_val": cst.med_corpus_val,
-        "--med_corpus_test": cst.med_corpus_test,
+        ("--med_corpus_train", cst.med_corpus_train,
+            "Path to PubTator file containing train corpus"),
+        ("--med_corpus_dev", cst.med_corpus_dev,
+            "Path to PubTator file containing dev corpus"),
+        ("--med_corpus_test", cst.med_corpus_test,
+            "Path to PubTator file containing test corpus"),
 
         # pickle_corpora specific
-        "--train_fname": cst.train_fname,
-        "--val_fname": cst.val_fname,
-        "--test_fname": cst.test_fname,
-        '--tokenization': TokenType.CHAR,
+        ("--train_fname", cst.train_fname,
+            "Path to file in which train corpus object should be serialized"),
+        ("--dev_fname", cst.dev_fname,
+            "Path to file in which dev corpus object should be serialized"),
+        ("--test_fname", cst.test_fname,
+            "Path to file in which test corpus object should be serialized"),
+        ('--tokenization', TokenType.CHAR,
+            "Type of tokenization: 'word', 'wordpiece' or 'character'."),
 
         # UMLS_concepts_init specific
-        "--umls_fname": cst.umls_fname,
-        "--st21_fname": cst.stid_fname,
+        ("--umls_fname", cst.umls_fname,
+            ""),
+        ("--st21_fname", cst.stid_fname,
+            ""),
 
-        "--vocab_file": cst.vocab_file
-    }
+        ("--vocab_file", cst.vocab_file,
+            "Path to a file containing a vocabulary or "
+            "name of a huggingface BERT-type model.")
+    ]
+    args = {k: v for k, v, _ in arglist}
+    descriptions = {k: d for k, _, d in arglist}
     parse_args(argv, args)
     if type(args['--tokenization']) != TokenType:
         args['--tokenization'] = TokenType.from_str(args['--tokenization'])
-    return args
+    return args, descriptions
 
 
 def get_evaluate_args(argv):
