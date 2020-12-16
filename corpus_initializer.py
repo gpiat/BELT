@@ -105,20 +105,20 @@ def pickle_corpora(fnames):
     """
     tokenizer = get_tokenizer(fnames['--tokenization'], fnames['--vocab_file'])
     train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']], tokenizer)
-    val_corpus = MedMentionsCorpus([fnames['--med_corpus_val']], tokenizer)
+    dev_corpus = MedMentionsCorpus([fnames['--med_corpus_dev']], tokenizer)
     test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']], tokenizer)
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
-    with open(fnames['--val_fname'], 'wb') as val_file:
-        pickle.dump(val_corpus, val_file)
+    with open(fnames['--dev_fname'], 'wb') as dev_file:
+        pickle.dump(dev_corpus, dev_file)
     with open(fnames['--test_fname'], 'wb') as test_file:
         pickle.dump(test_corpus, test_file)
 
 
 if __name__ == '__main__':
 
-    args = get_corpus_init_args(argv)
+    args, arg_descriptions = get_corpus_init_args(argv)
 
     no_mandatory_args = True
 
@@ -129,6 +129,8 @@ if __name__ == '__main__':
     if "--pickle" in argv:
         no_mandatory_args = False
         pickle_corpora(fnames=args)
+        # setting occurence threshold for assigning a class
+        # to a default category (Default Category Threshold)
         dct = 0
         if "--dct" in argv:
             # number that (hopefully) comes after "--dct" in argv
@@ -147,4 +149,4 @@ if __name__ == '__main__':
               "Remember to appropriately set your file paths in "
               "constants.py.\n"
               "available options:\n",
-              '\n'.join(list(args.keys())))
+              '\n'.join(arg_descriptions.items()))
