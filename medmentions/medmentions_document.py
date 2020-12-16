@@ -77,6 +77,7 @@ class MedMentionsDocument:
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
         sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
+        self.tokenizer = tokenizer
         self.sentences = self.raw_text.split('\n')
         # self.sentences is now of the form ['Title', 'Abstract. Stuff.']
         self.sentences.extend(sentence_tokenizer.tokenize(self.sentences[1]))
@@ -89,7 +90,6 @@ class MedMentionsDocument:
         # for example, if tokenization is wordpiece, self.sentences is now
         # of the form [['Title'], ['Abs', '##tract', '.'], ['Stuff', '.']]
 
-        self.tokenizer = tokenizer
         self.text = self.tokenizer.tokenize(self.raw_text)
         self.tokenization = tokenizer.tokenization
         self._initialize_targets()
