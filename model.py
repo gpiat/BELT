@@ -87,41 +87,41 @@ class BELT(nn.Module):
                   0 | T     T     T     F     T
                     |
                   0 | T     T     T     T     F
+            We want all tokens to be able to attend to themselves
+            We want non-padding tokens to be able to attend to all the
+            non-padding tokens
+            We want padding tokens to attend to only themselves
+            # combining these properties:
+
+            [a b c <pad> <pad>] != <pad> -> [1 1 1 0 0]
+            [1 1 1 0 0] * [[1 1 1 0 0]]  ->          ||| this matrix |||
+                                                     vvv             vvv
+                a     b     c   <pad> <pad>       a     b     c   <pad> <pad>
+               ---------------------------       ---------------------------
+            x | 1     0     0     0     0     x | 1     1     1     0     0
+              |                                 |
+            y | 0     1     0     0     0     y | 1     1     1     0     0
+              |                                 |
+            z | 0     0     1     0     0  +  z | 1     1     1     0     0
+              |                                 |
+            0 | 0     0     0     1     0     0 | 0     0     0     0     0
+              |                                 |
+            0 | 0     0     0     0     1     0 | 0     0     0     0     0
+
+                                           =
+
+                a     b     c   <pad> <pad>
+               ---------------------------
+            x | 2     1     1     0     0
+              |
+            y | 1     2     1     0     0
+              |
+            z | 1     1     2     0     0
+              |
+            0 | 0     0     0     1     0
+              |
+            0 | 0     0     0     0     1
         """
-        # We want all tokens to be able to attend to themselves
-        # We want non-padding tokens to be able to attend to all the
-        # non-padding tokens
-        # We want padding tokens to attend to only themselves
-        # # combining these properties:
-        #
-        # [a b c <pad> <pad>] != <pad> -> [1 1 1 0 0]
-        # [1 1 1 0 0] * [[1 1 1 0 0]]  ->          ||| this matrix |||
-        #                                          vvv             vvv
-        #     a     b     c   <pad> <pad>       a     b     c   <pad> <pad>
-        #    ---------------------------       ---------------------------
-        # x | 1     0     0     0     0     x | 1     1     1     0     0
-        #   |                                 |
-        # y | 0     1     0     0     0     y | 1     1     1     0     0
-        #   |                                 |
-        # z | 0     0     1     0     0  +  z | 1     1     1     0     0
-        #   |                                 |
-        # 0 | 0     0     0     1     0     0 | 0     0     0     0     0
-        #   |                                 |
-        # 0 | 0     0     0     0     1     0 | 0     0     0     0     0
-
-        #                                =
-
-        #     a     b     c   <pad> <pad>
-        #    ---------------------------
-        # x | 2     1     1     0     0
-        #   |
-        # y | 1     2     1     0     0
-        #   |
-        # z | 1     1     2     0     0
-        #   |
-        # 0 | 0     0     0     1     0
-        #   |
-        # 0 | 0     0     0     0     1
 
         # creating a matrix of ones of size batch_size x window_size x 1
         # used to duplicate the identity matrix for each batch
