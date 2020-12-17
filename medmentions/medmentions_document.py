@@ -204,5 +204,5 @@ class MedMentionsDocument:
         start = 0
         for sentence in self.sentences:
             end = start + len(sentence)
-            start = end
             yield self.targets[start:end]
+            start = end
