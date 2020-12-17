@@ -2,8 +2,6 @@ import itertools
 import nltk
 from diff_match_patch import diff_match_patch
 
-nltk.download('punkt')
-
 
 def text_preprocess(text):
     """ Takes the raw title and abstract as written in the file
@@ -76,6 +74,7 @@ class MedMentionsDocument:
         self.raw_text = self.title + '\n' + self.abstract
         self.umls_entities = [UMLS_Entity(entity) for entity in umls_mentions]
 
+        nltk.download('punkt')
         sentence_tokenizer = nltk.data.load('tokenizers/punkt/english.pickle')
         self.tokenizer = tokenizer
         self.sentences = self.raw_text.split('\n')
