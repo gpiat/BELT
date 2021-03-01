@@ -3,7 +3,7 @@ import sys
 import torch
 import torch_optimizer
 
-from tokenizer import TokenType
+from pubtatortool.tokenization import TokenType
 from torch.optim.lr_scheduler import StepLR
 
 
@@ -91,6 +91,7 @@ def get_train_args(argv):
 
 def get_corpus_init_args(argv):
     arglist = [
+        # create_corpora specific
         ("--full_corpus_fname", cst.full_corpus_fname,
             ""),
         ("--train_corpus_pmids", cst.train_corpus_pmids,
@@ -100,7 +101,6 @@ def get_corpus_init_args(argv):
         ("--test_corpus_pmids", cst.test_corpus_pmids,
             ""),
 
-        # create_corpora specific
         ("--med_corpus_train", cst.med_corpus_train,
             "Path to PubTator file containing train corpus"),
         ("--med_corpus_dev", cst.med_corpus_dev,

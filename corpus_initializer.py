@@ -3,8 +3,8 @@ import pickle
 from sys import argv
 
 from args_handler import get_corpus_init_args
-from medmentions import MedMentionsCorpus
-from tokenizer import get_tokenizer
+from pubtatortool import PubTatorCorpus
+from pubtatortool.tokenization import get_tokenizer
 
 
 def _UMLS_concepts_initializer(corpus, dct):
@@ -78,7 +78,9 @@ def create_corpora(fnames):
         PubTator format.
     """
     # creating sub-corpora for train, test and validation
-    full_corpus = MedMentionsCorpus([fnames['--full_corpus_fname']])
+    tokenizer = get_tokenizer(tokenization=fnames['--tokenization'],
+                              vocab=fnames['--vocab_file'])
+    full_corpus = PubTatorCorpus([fnames['--full_corpus_fname']], tokenizer)
 
     pmids = {}
     with open(fnames['--train_corpus_pmids'], 'r') as f:
@@ -92,7 +94,7 @@ def create_corpora(fnames):
         if document.pmid in pmids['train']:
             document.write_to(fnames['--med_corpus_train'])
         elif document.pmid in pmids['val']:
-            document.write_to(fnames['--med_corpus_val'])
+            document.write_to(fnames['--med_corpus_dev'])
         elif document.pmid in pmids['test']:
             document.write_to(fnames['--med_corpus_test'])
 
@@ -103,10 +105,11 @@ def pickle_corpora(fnames):
         pickled. This avoids object creation overhead (which is fairly
         expensive) when running many experiments on the same corpus.
     """
-    tokenizer = get_tokenizer(fnames['--tokenization'], fnames['--vocab_file'])
-    train_corpus = MedMentionsCorpus([fnames['--med_corpus_train']], tokenizer)
-    dev_corpus = MedMentionsCorpus([fnames['--med_corpus_dev']], tokenizer)
-    test_corpus = MedMentionsCorpus([fnames['--med_corpus_test']], tokenizer)
+    tokenizer = get_tokenizer(tokenization=fnames['--tokenization'],
+                              vocab=fnames['--vocab_file'])
+    train_corpus = PubTatorCorpus([fnames['--med_corpus_train']], tokenizer)
+    dev_corpus = PubTatorCorpus([fnames['--med_corpus_dev']], tokenizer)
+    test_corpus = PubTatorCorpus([fnames['--med_corpus_test']], tokenizer)
 
     with open(fnames['--train_fname'], 'wb') as train_file:
         pickle.dump(train_corpus, train_file)
