@@ -6,3 +6,5 @@ stats/*
 .directory
 *tsv*/*
 .ipynb_checkpoints/*
+*.bak
+*.out
