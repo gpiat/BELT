@@ -5,6 +5,40 @@ from constants import device
 from model import BELT
 
 
+def binary_target_finder(document,
+                         start_index,
+                         end_index,
+                         umls_concepts):
+    """ Finds the targets for a set of tokens when in "bin" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    return [int(i is not None) for i in
+            document.targets[start_index:end_index]]
+
+
+def CUID_target_finder(document,
+                       start_index,
+                       end_index,
+                       umls_concepts):
+    """ Finds the targets for a set of tokens when in "cuid" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            umls_concepts (dict): lookup table to translate
+                CUIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    return [umls_concepts[cuid] for cuid, _ in
+            document.targets[start_index:end_index]]
+
+
 def get_text_window(text, window_size, start_index, end_index, pad_token=1):
     """
     """
@@ -40,6 +74,52 @@ def get_start_end_indices(i, text_len, window_size):
                         window_size),
                     text_len)
     return start_index, end_index
+
+
+def load_model(args, target_indexing, tokenizer=None):
+    """ Loads or creates a model for training.
+        Args:
+            args (dict): a dict of arguments processed from the command line
+            target_indexing (dict): a lookup table for determining class names
+            tokenizer: Optional because only useful if a new model is being
+                created.
+    """
+    n_classes = len(target_indexing) if args['--target_type'] != "bin" else 1
+    if args['--resume']:
+        with open(args['--writepath'] + args['--model_fname'],
+                  'rb') as model_file:
+            model = pickle.load(model_file)
+        # when transfer learning to a model with a different number
+        # of classes, we replace the last layer of the model.
+        if (model.decoder.out_features - 1) != n_classes:
+            model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
+    # elif args['--pretrained']:
+    #     from transformers import AutoModel
+    #     model = AutoModel.from_pretrained(args['--model_fname'])
+    else:
+        model = BELT(tokenizer=tokenizer, n_classes=n_classes,
+                     embed_size=args['--embed_size'], nhead=args['--nhead'],
+                     nhid=args['--nhid'], nlayers=args['--nlayers'],
+                     phrase_len=args['--window_size'],
+                     dropout=args['--dropout']).to(device)
+    return model
+
+
+def semtype_target_finder(document,
+                          start_index,
+                          end_index,
+                          sem_types):
+    """ Finds the targets for a set of tokens when in "semantic type" mode.
+        Args:
+            document: the document being processed
+            start_index: index of the first token
+            end_index: index of the last token
+            sem_types (dict): lookup table to translate
+                STIDs to their corresponding indices in the
+                prediction vector for the token.
+    """
+    return [sem_types[stid] for _, stid in
+            document.targets[start_index:end_index]]
 
 
 def pad(text, window_size, overlap, batch_size=1, pad_token='<pad>'):
@@ -91,86 +171,6 @@ def pad(text, window_size, overlap, batch_size=1, pad_token='<pad>'):
         missing_windows = batch_size - incomplete_batch_size
         out_text += [pad_token] * (window_size - overlap) * missing_windows
     return out_text
-
-
-def load_model(args, target_indexing, tokenizer=None):
-    """ Loads or creates a model for training.
-        Args:
-            args (dict): a dict of arguments processed from the command line
-            target_indexing (dict): a lookup table for determining class names
-            tokenizer: Optional because only useful if a new model is being
-                created.
-    """
-    n_classes = len(target_indexing) if args['--target_type'] != "bin" else 1
-    if args['--resume']:
-        with open(args['--writepath'] + args['--model_fname'],
-                  'rb') as model_file:
-            model = pickle.load(model_file)
-        # when transfer learning to a model with a different number
-        # of classes, we replace the last layer of the model.
-        if (model.decoder.out_features - 1) != n_classes:
-            model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
-    # elif args['--pretrained']:
-    #     from transformers import AutoModel
-    #     model = AutoModel.from_pretrained(args['--model_fname'])
-    else:
-        model = BELT(tokenizer=tokenizer, n_classes=n_classes,
-                     embed_size=args['--embed_size'], nhead=args['--nhead'],
-                     nhid=args['--nhid'], nlayers=args['--nlayers'],
-                     phrase_len=args['--window_size'],
-                     dropout=args['--dropout']).to(device)
-    return model
-
-
-def CUID_target_finder(document,
-                       start_index,
-                       end_index,
-                       umls_concepts):
-    """ Finds the targets for a set of tokens when in "cuid" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            umls_concepts (dict): lookup table to translate
-                CUIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    return [umls_concepts[cuid] for cuid, _ in
-            document.targets[start_index:end_index]]
-
-
-def semtype_target_finder(document,
-                          start_index,
-                          end_index,
-                          sem_types):
-    """ Finds the targets for a set of tokens when in "semantic type" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            sem_types (dict): lookup table to translate
-                STIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    return [sem_types[stid] for _, stid in
-            document.targets[start_index:end_index]]
-
-
-def binary_target_finder(document,
-                         start_index,
-                         end_index,
-                         umls_concepts):
-    """ Finds the targets for a set of tokens when in "bin" mode.
-        Args:
-            document: the document being processed
-            start_index: index of the first token
-            end_index: index of the last token
-            umls_concepts (dict): lookup table to translate
-                CUIDs to their corresponding indices in the
-                prediction vector for the token.
-    """
-    return [int(i is not None) for i in
-            document.targets[start_index:end_index]]
 
 
 def set_targets(target_type):
