@@ -1,10 +1,12 @@
 import constants as cst
+import math
 import sys
 import torch
 import torch_optimizer
 
 from pubtatortool.tokenization import TokenType
 from torch.optim.lr_scheduler import StepLR
+from transformers import get_linear_schedule_with_warmup
 
 
 def parse_args(argv, args):
@@ -48,12 +50,14 @@ def parse_args(argv, args):
 def get_train_args(argv):
     args = {
         '--train_fname': cst.train_fname,
-        '--val_fname': cst.val_fname,
+        '--dev_fname': cst.dev_fname,
+        '--test_fname': cst.test_fname,
         '--model_fname': cst.model_fname,
         '--writepath': cst.wd,
+        '--bert_dir': cst.wd + '/data/biobert-v1.1',
         '--resume': False,
         '--epochs': 10,
-        '--optim': "adam",
+        '--optim': "adamw",
         '--lr': 5,  # only useful for SGD
         # TODO: make None default learning rate and add an
         #       "if lr is None lr = x" statement for each optimizer
@@ -66,7 +70,7 @@ def get_train_args(argv):
         # or "cuid" for UMLS Concept Unique Identifiers
         '--target_type': 'cuid',
         '--embed_size': 200,  # size of embeddings
-        '--nhead': 4,  # number of attention heads
+        '--nhead': 8,  # number of attention heads
         '--nhid': 250,  # dimension of the FFNN in the encoder
         '--nlayers': 4,  # number of `TransformerEncoderLayer`s in the encoder
         '--dropout': 0.1  # dropout value for `TransformerEncoderLayer`s
@@ -163,7 +167,7 @@ def get_evaluate_args(argv):
     return args
 
 
-def select_optimizer(option, model, lr):
+def select_optimizer(option, model, lr, n_batches=None, epochs=None):
     # optimizer selection
 
     if option == "adam":
@@ -177,8 +181,12 @@ def select_optimizer(option, model, lr):
                                           weight_decay=0)
         scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adamw":
-        optimizer = torch.optim.AdamW(model.parameters())
-        scheduler = StepLR(optimizer, 10.0, gamma=0.8)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        max_steps = n_batches * epochs
+        num_warmup_step = math.floor(max_steps * 0.1)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, round(num_warmup_step), max_steps
+        )
     elif option == "adamax":
         optimizer = torch.optim.Adamax(model.parameters())
         scheduler = StepLR(optimizer, 10.0, gamma=0.8)
