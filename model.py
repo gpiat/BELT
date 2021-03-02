@@ -170,7 +170,13 @@ class BELT(nn.Module):
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src):
-        # src shape: torch.Size([minibatch, window_size])
+        # src shape: torch.Size([minibatch, max_seq_len])
+        # we want [minibatch, phrase_len] so we add a vertical strip of padding
+        missing_cols = self.phrase_len - src.shape()[1]
+        assert missing_cols >= 0
+        padding = torch.zeros(src.shape()[0], missing_cols) + self.pad_token
+        padding.to(device)
+        src = torch.cat((src, padding), 1)
 
         # From documentation:
         # key_padding_mask – if provided, specified padding elements in
