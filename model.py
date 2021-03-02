@@ -195,6 +195,7 @@ class BELT(nn.Module):
         # >>> input = torch.LongTensor([[1,2,4,5],[4,3,2,9]])
         # so input shape should be (minibatch, window_size)
         output = self.encoder(src) * math.sqrt(self.embed_size)
+        # TODO: wait where does this * sqrt(embed size) come from?
         output = self.pos_encoder(output)
         # output shape: torch.Size([minibatch, window_size, embed_size])
         # as stated in this post:
