@@ -1,8 +1,6 @@
 import constants as cst
 import csv
 import math
-import pickle
-import sys
 import time
 import torch
 import warnings
@@ -13,9 +11,17 @@ from args_handler import select_optimizer
 from constants import criterion
 from constants import device
 
-from util import get_text_window
-from util import pad
-from util import set_targets
+from dataset import NERDataset
+from dataset import collate_ner
+from dataset import extract_label_mapping
+
+from math import mean
+
+from transformers import BertTokenizer
+from torch.utils.data import DataLoader
+from torch.cuda.amp import GradScaler
+from torch.cuda.amp import autocast
+
 from util import load_model
 
 from evaluate import evaluate
@@ -23,8 +29,7 @@ from sys import argv
 
 
 def train(model, corpus, target_finder, target_indexing, optimizer,
-          scheduler, batch_size, overlap=0.2, epoch=0,
-          log_interval=200):
+          scheduler, batch_size, scaler):
     """ Args:
             model
             corpus
@@ -41,158 +46,27 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
             log_interval (int): number of iterations between logging events
     """
     model.train()  # Turn on the train mode
+    dataloader = DataLoader(
+        corpus,
+        batch_size=batch_size,
+        collate_fn=lambda b: collate_ner(b,
+                                         pad_id=model.tokenizer.pad_token_id)
+    )
+    total_loss = []
 
-    # henceforth we refer to sequences as windows, as the
-    # overlap feature makes it practical to think about
-    # the sequences like a sliding window over the text.
-    window_size = model.phrase_len
-    total_loss = 0.
-    start_time = time.time()
+    for batch in iter(dataloader):
+        optimizer.zero_grad()
+        labels = batch.get("token_labels")
+        with autocast():
+            output = model(batch)
+            loss = criterion(output, labels, batch.get("token_masks"))
+            total_loss.append(float(loss))
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
 
-    # We will be going over the text with a sliding window, which
-    # means the sequences will overlap. The idea is that the first
-    # and last x% of the predicted labels for a given sequence likely
-    # don't have enough bidirectional context to give an accurate
-    # prediction. This `increment` is the number of tokens that we skip
-    # to get the next window.
-    increment = round((1 - (overlap / 2)) * window_size)
-    # example: overlap = 0.2, window_size = 10
-    # 1 - (overlap / 2) = 0.9
-    # increment = 0.9 * window_size = 9
-    # In this case, there is one token of overlap at the beginning of
-    # the window and one at the end.
-    # The use of `round` is a response to floating point errors.
-    # Without it, `increment` might be something like 8.9999 in some cases.
-
-    for doc_idx, document in enumerate(corpus.documents()):
-        # Padding the text, this allows the text to be cut up
-        # neatly into appropriately sized chunks to fill up a
-        # round number of batches
-        padded_text = pad(document.text, window_size, overlap,
-                          batch_size=batch_size,
-                          pad_token=model.tokenizer.pad_token)
-
-        # here huggingface may tell us that the sequence is too long
-        # to pass on to BERT as is. We do not care about this as
-        # we cut the text into batches afterwards.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            text = model.tokenizer.encode(padded_text)
-
-        # initializing targets and model inputs
-        targets = torch.zeros(batch_size,
-                              window_size,
-                              dtype=torch.long).to(device)
-        data = torch.zeros(batch_size,
-                           window_size,
-                           dtype=torch.long).to(device)
-
-        i = 0
-        while True:
-            # For clarification: this is not an infinite loop, it's the
-            # official python syntax for a do/while. Complain to Guido.
-
-            start_index = i * increment
-            end_index = i * increment + window_size
-            if end_index > len(text):
-                break
-            # You may be wondering: "What if start_index ends up less than
-            # `increment` tokens away from the end of the window? Couldn't
-            # we miss some text if it doesn't neatly fit into a number of
-            # batches?"
-            # That can't happen, thanks to padding.
-
-            def debug():
-                """
-                    This is a debugging function that is theoretically no
-                    longer useful but this specific block of code has given
-                    me a lot of trouble so I'm leaving it here just in case
-                """
-                print("data shape: {}".format(data.shape))
-                print("window number {}, in position {} of batch with "
-                      "size {}".format(i, i % batch_size, batch_size))
-                print("expected window size: {}, start index: {},"
-                      " end index: {}, got window_size: {}".format(
-                          window_size, start_index, end_index,
-                          end_index - start_index))
-
-            # Every iteration of this loop just fills up the
-            # `data` matrix and its corresponding targets
-            # progressively until we fill up a batch
-            try:
-                tw = get_text_window(text, window_size, start_index, end_index,
-                                     pad_token=model.tokenizer.pad_token_id)
-            except RuntimeError as e:
-                debug()
-                raise e
-
-            try:
-                data[i % batch_size] = tw
-            except RuntimeError as e:
-                print("text window shape: {}".format(tw.shape))
-                debug()
-                print("text window:")
-                print(tw)
-                raise e
-
-            target = target_finder(document, start_index,
-                                   end_index, target_indexing)
-            tensor_target = torch.Tensor(target).to(device)
-            targets[i % batch_size][:tensor_target.size()[0]] = tensor_target
-
-            # When the batch is full, actually process it
-            if (i + 1) % batch_size == 0:
-                optimizer.zero_grad()
-                output = model(data)
-
-                # Here too, the debugging code is theoretically no
-                # longer useful but this specific block of code has
-                # given me a lot of trouble
-                try:
-                    loss = criterion(output, targets)
-                except Exception as e:
-                    print("targets.dtype: {}".format(targets.dtype))
-                    print("targets: {}".format(targets))
-                    print("output.dtype: {}".format(output.dtype))
-                    print("output: {}".format(output))
-                    raise e
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-                optimizer.step()
-
-                total_loss += loss.item()
-                # Resetting targets and data
-                targets = torch.zeros(batch_size,
-                                      window_size,
-                                      dtype=torch.long).to(device)
-                data = torch.zeros(batch_size,
-                                   window_size,
-                                   dtype=torch.long).to(device)
-            i += 1
-
-        if doc_idx % log_interval == 0:
-            cur_loss = total_loss / log_interval
-            elapsed = time.time() - start_time
-            try:
-                ppl = math.exp(cur_loss)
-            except OverflowError:
-                print("ppl too large to compute")
-                ppl = 0
-            print('| epoch {:3d} | {:5d}/{:5d} documents | '
-                  'lr {:02.2f} | ms/batch {:5.2f} | '
-                  'loss {:5.2f} | ppl {:8.2f}'.format(
-                      epoch,
-                      doc_idx,
-                      corpus.n_documents,
-                      scheduler.get_lr()[0],
-                      elapsed * 1000 / log_interval,
-                      cur_loss,
-                      ppl))
-            total_loss = 0
-            # this line meant that the time of each log interval was
-            # measured on its own. That might've been what I wanted
-            # to do at the time, but makes little sense now.
-            # start_time = time.time()
+    return round(mean(total_loss), 2)
 
 
 def help(args, issue_description=""):
@@ -215,32 +89,6 @@ def help(args, issue_description=""):
     ]
     for item in zip(args.keys(), arg_descriptions):
         print(item)
-
-
-def load_files(args):
-    try:
-        with open(args['--train_fname'], 'rb') as train_file:
-            train_corpus = pickle.load(train_file)
-        with open(args['--val_fname'], 'rb') as dev_file:
-            dev_corpus = pickle.load(dev_file)
-        if ((args['--target_type'] == "cuid" or
-             args['--target_type'] == "bin")):
-            with open(cst.umls_fname, 'rb') as umls_con_file:
-                target_indexing = pickle.load(umls_con_file)
-        else:
-            with open(cst.stid_fname, 'rb') as semtype_file:
-                target_indexing = pickle.load(semtype_file)
-    except pickle.UnpicklingError:
-        print("Something went wrong when unpickling the train corpus, "
-              "dev corpus, or UMLS concepts file. Please ensure the "
-              "specified files are valid python pickles.")
-        sys.exit(1)
-    except FileNotFoundError:
-        print("One of the train corpus, dev corpus, or UMLS concept "
-              "pickles was not found. Please ensure that the file "
-              "specified as argument or in constants.py exists.")
-        sys.exit(1)
-    return train_corpus, target_indexing, dev_corpus
 
 
 def evaluate_model_performance(model, train_corpus, target_finder,
@@ -306,18 +154,33 @@ def write_model_to_file(model, args):
 
 if __name__ == '__main__':
     args = get_train_args(argv)
-    target_finder = set_targets(args['--target_type'])
 
-    train_corpus, target_indexing, dev_corpus = load_files(args)
+    dataset_files = {
+        'train': args['--train_fname'],
+        'dev': args['--dev_fname'],
+        'test': args['--test_fname']
+    }
+
+    bert_tokenizer = BertTokenizer.from_pretrained(args['--bert_dir'])
+    label_mapping = extract_label_mapping(file_list=dataset_files)
+
+    train_corpus = NERDataset(medmentions_file=args.get("--train_fname"),
+                              bert_tokenizer=bert_tokenizer,
+                              label_mapping=label_mapping)
+    dev_corpus = NERDataset(medmentions_file=args.get("--dev_fname"),
+                            bert_tokenizer=bert_tokenizer,
+                            label_mapping=label_mapping)
 
     model = load_model(args,
-                       target_indexing=target_indexing,
+                       target_indexing=label_mapping,
                        tokenizer=train_corpus.tokenizer)
 
     print("running on: ", device)
 
+    n_batches = math.ceil(len(train_corpus) / args["--batch_size"])
     optimizer, scheduler = select_optimizer(
-        option=args['--optim'].lower(), model=model, lr=args['--lr'])
+        option=args['--optim'].lower(), model=model, lr=args['--lr'],
+        n_batches=n_batches, epochs=args['--epochs'])
 
     # start train
     best_loss = float("inf")
@@ -346,26 +209,26 @@ if __name__ == '__main__':
 
     start_time = time.time()
     start_info, loss =\
-        evaluate_model_performance(model, train_corpus, target_finder,
-                                   target_indexing, args, dev_corpus,
-                                   start_time)
+        evaluate_model_performance(model, train_corpus, label_mapping,
+                                   args, dev_corpus, start_time)
     write_results_to_file(start_info, args)
 
+    scaler = GradScaler()
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
 
-        train(model, train_corpus, target_finder,
-              target_indexing, optimizer, scheduler,
-              batch_size=args["--batch_size"],
-              overlap=args['--overlap'], epoch=epoch)
+        epoch_train_loss =\
+            train(model, train_corpus, label_mapping, optimizer, scheduler,
+                  batch_size=args["--batch_size"], scaler=scaler)
 
-        current_epoch_info, loss =\
-            evaluate_model_performance(model, train_corpus,
-                                       target_finder,
-                                       target_indexing,
-                                       args, dev_corpus,
-                                       epoch_start_time)
-        write_results_to_file(current_epoch_info, args)
+        # TODO: dev and test evaluation, writing stuff to disk, transfer BERT
+        # weights for init, and make sure corpora are properly loaded
+        # current_epoch_info, loss =\
+        #     evaluate_model_performance(model, train_corpus,
+        #                                label_mapping,
+        #                                args, dev_corpus,
+        #                                epoch_start_time)
+        # write_results_to_file(current_epoch_info, args)
 
         if loss < best_loss:
             best_loss = loss
@@ -373,4 +236,4 @@ if __name__ == '__main__':
             write_model_to_file(best_model, args)
 
         print("End of epoch {}, advancing scheduler".format(epoch + 1))
-        scheduler.step()
+        # scheduler.step()  # already done in train()
