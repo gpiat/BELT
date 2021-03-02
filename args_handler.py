@@ -61,7 +61,7 @@ def get_train_args(argv):
         '--lr': 5,  # only useful for SGD
         # TODO: make None default learning rate and add an
         #       "if lr is None lr = x" statement for each optimizer
-        '--window_size': 20,
+        '--window_size': 128,
         '--batch_size': 8,
         '--overlap': 0.2,
         '--pretrained': False,  # TODO: useless as of now, may be deleted
