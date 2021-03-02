@@ -313,10 +313,10 @@ def collate_ner(batch, pad_id: int = 0):
     for seq_labels in all_seq_labels:
         cur_labels = copy.deepcopy(seq_labels)
 
-        # Padding with random value, the loss will eventually be masked
-        # TODO
+        # Padding with -100, the default "ignore" value in pytorch loss
+        # functions making it unnecessary to mask loss.
         while len(cur_labels) < max_seq_len_seq:
-            cur_labels.append(0)
+            cur_labels.append(-100)
 
         tensor_all_labels.append(cur_labels)
 

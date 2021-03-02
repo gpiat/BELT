@@ -3,6 +3,7 @@ import torch.nn as nn
 import os
 
 criterion = nn.CrossEntropyLoss()
+# CrossEntropyLoss(ignore_index=-100, reduction='mean')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 med_prefix = os.path.expanduser('~') + "/Documents/Datasets/MedMentions/"
