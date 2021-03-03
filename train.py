@@ -220,6 +220,8 @@ if __name__ == '__main__':
         epoch_train_loss =\
             train(model, train_corpus, label_mapping, optimizer, scheduler,
                   batch_size=args["--batch_size"], scaler=scaler)
+        epoch_time = time.time() - epoch_start_time
+
 
         # TODO: dev and test evaluation, writing stuff to disk, transfer BERT
         # weights for init, and make sure corpora are properly loaded
@@ -235,5 +237,6 @@ if __name__ == '__main__':
             best_model = model
             write_model_to_file(best_model, args)
 
-        print("End of epoch {}, advancing scheduler".format(epoch + 1))
+        print("End of epoch {}, took {} seconds.".format(epoch + 1,
+                                                         epoch_time))
         # scheduler.step()  # already done in train()
