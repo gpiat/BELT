@@ -93,9 +93,6 @@ def load_model(args, target_indexing, tokenizer=None):
         # of classes, we replace the last layer of the model.
         if (model.decoder.out_features - 1) != n_classes:
             model.decoder = torch.nn.Linear(model.embed_size, n_classes + 1)
-    # elif args['--pretrained']:
-    #     from transformers import AutoModel
-    #     model = AutoModel.from_pretrained(args['--model_fname'])
     else:
         model = BELT(tokenizer=tokenizer, n_classes=n_classes,
                      embed_size=args['--embed_size'], nhead=args['--nhead'],
