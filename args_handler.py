@@ -5,6 +5,7 @@ import sys
 import torch
 import torch_optimizer
 
+from datetime import datetime
 from pubtatortool.tokenization import TokenType
 from torch.optim.lr_scheduler import StepLR
 from transformers import get_linear_schedule_with_warmup
@@ -50,7 +51,7 @@ def parse_args(argv, args):
 
 def get_train_args(argv):
     args = {
-        '--writepath': cst.out_dir,
+        # '--writepath': handled by get_evaluate_args
         '--out_dir_suffix': '',
 
         '--train_fname': cst.train_fname,
@@ -148,7 +149,8 @@ def get_evaluate_args(argv):
         '--umls_fname': cst.umls_fname,
         '--st21_fname': cst.stid_fname,
 
-        '--writepath': cst.out_dir,
+        '--writepath': cst.wd + 'runs/train/' +
+        datetime.today().strftime('%Y_%m_%d_%H_%M_%S'),
         '--out_dir_suffix': '',
         '--report_fname': "stats.out",
         '--predictions_fname': "predictions.out",

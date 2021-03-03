@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 import os
 
-from datetime import datetime
-
 criterion = nn.CrossEntropyLoss()
 # CrossEntropyLoss(ignore_index=-100, reduction='mean')
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -27,7 +25,6 @@ test_fname = pkl_prefix + "test.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
 wd = os.getcwd() + '/'
-out_dir = wd + datetime.today().strftime('%Y_%m_%d_%H_%M_%S')
 train_stats_fname = "/train_stats.csv"
 model_fname = "model.pkl"
 
