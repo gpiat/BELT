@@ -1,6 +1,5 @@
 import constants as cst
 import numpy as np
-import os
 import pickle
 import sys
 import torch
@@ -8,6 +7,7 @@ import torch
 from args_handler import get_evaluate_args
 from dataset import extract_label_mapping
 from dataset import collate_ner
+from dataset import NERDataset
 
 from seqeval.metrics import accuracy_score
 from seqeval.metrics import classification_report
@@ -18,6 +18,7 @@ from statistics import mean
 from sys import argv
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
+from transformers import BertTokenizer
 
 
 def prec_rec_f1(tp, fp, fn):
@@ -215,11 +216,10 @@ def evaluate(model, corpus, idx_to_labels, batch_size,
     return return_val
 
 
-def main(args):
-    with open(args['--test_fname'], 'rb') as test_file:
-        test_corpus = pickle.load(test_file)
-    with open(args['--model_fname'], 'rb') as model_file:
-        best_model = torch.load(model_file)
+def main(args, model, bert_tokenizer, label_mapping):
+    test_corpus = NERDataset(medmentions_file=args.get("--test_fname"),
+                             bert_tokenizer=bert_tokenizer,
+                             label_mapping=label_mapping)
 
     labels_to_idx = extract_label_mapping(args['--test_fname'])
     idx_to_labels = {v: k for k, v in labels_to_idx.items()}
@@ -238,4 +238,13 @@ def main(args):
 
 if __name__ == '__main__':
     args = get_evaluate_args(argv)
-    main(args)
+
+    dataset_files = {
+        'test': args['--test_fname']
+    }
+    with open(args['--model_fname'], 'rb') as model_file:
+        best_model = torch.load(model_file)
+    bert_tokenizer = BertTokenizer.from_pretrained(args['--bert_dir'])
+    label_mapping = extract_label_mapping(file_list=dataset_files)
+
+    main(args, best_model)
