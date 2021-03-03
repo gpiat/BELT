@@ -1,31 +1,28 @@
 import constants as cst
 import csv
 import math
+import os
 import time
 import torch
 import warnings
 
 from args_handler import get_train_args
 from args_handler import select_optimizer
-
 from constants import criterion
 from constants import device
-
 from dataset import NERDataset
 from dataset import collate_ner
 from dataset import extract_label_mapping
+from evaluate import evaluate
+from evaluate import main
+from util import load_model
 
 from math import mean
-
+from sys import argv
 from transformers import BertTokenizer
 from torch.utils.data import DataLoader
 from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
-
-from util import load_model
-
-from evaluate import evaluate
-from sys import argv
 
 
 def train(model, corpus, target_finder, target_indexing, optimizer,
@@ -91,52 +88,9 @@ def help(args, issue_description=""):
         print(item)
 
 
-def evaluate_model_performance(model, train_corpus, target_finder,
-                               target_indexing, args, dev_corpus,
-                               epoch_start_time):
-    (train_loss,
-     train_mention_p_r_f1,
-     train_doc_p_r_f1) = evaluate(model,
-                                  train_corpus,
-                                  target_finder,
-                                  target_indexing,
-                                  args['--overlap'],
-                                  compute_mntn_p_r_f1=True,
-                                  compute_doc_p_r_f1=True)
-
-    (dev_loss,
-     dev_mention_p_r_f1,
-     dev_doc_p_r_f1) = evaluate(model,
-                                dev_corpus,
-                                target_finder,
-                                target_indexing,
-                                args['--overlap'],
-                                compute_mntn_p_r_f1=True,
-                                compute_doc_p_r_f1=True)
-
-    # print('-' * 89)
-    try:
-        dev_ppl = math.exp(dev_loss)
-    except OverflowError:
-        # print("Dev perplexity too large to compute")
-        dev_ppl = "NA"
-    current_epoch_info = [str(time.time() - epoch_start_time),
-                          str(train_loss),
-                          str(dev_loss),
-                          str(dev_ppl),
-                          *train_mention_p_r_f1,
-                          *train_doc_p_r_f1,
-                          *dev_mention_p_r_f1,
-                          *dev_doc_p_r_f1]
-    # print(current_epoch_info)
-    # print('-' * 89)
-    return current_epoch_info, dev_loss
-
-
-def write_results_to_file(current_epoch_info, args):
+def write_results_to_file(current_epoch_info, train_stats_fname):
     # write epoch info at every epoch
-    with open((args["--writepath"] +
-               cst.train_stats_fname), 'a') as train_stats_file:
+    with open(train_stats_fname, 'a') as train_stats_file:
         writer = csv.writer(train_stats_file, delimiter=';')
         writer.writerow(current_epoch_info)
 
@@ -173,7 +127,7 @@ if __name__ == '__main__':
 
     model = load_model(args,
                        target_indexing=label_mapping,
-                       tokenizer=train_corpus.tokenizer)
+                       tokenizer=bert_tokenizer)
 
     print("running on: ", device)
 
@@ -184,8 +138,8 @@ if __name__ == '__main__':
 
     # start train
     best_loss = float("inf")
-    with open(args['--writepath'] +
-              args['--model_fname'], 'wb') as model_file:
+    with open(os.path.join(args['--writepath'],
+                           args['--model_fname']), 'wb') as model_file:
         # here pytorch warns us that it cannot perform sanity
         # checks on the model's source code, which we don't really
         # care about, so we ignore them.
@@ -193,6 +147,8 @@ if __name__ == '__main__':
             warnings.simplefilter("ignore")
             torch.save(model, model_file)
     best_model = None
+    train_stats_fname = os.path.join(args["--writepath"],
+                                     cst.train_stats_fname)
     if '--resume' not in argv:
         column_headers = [["time", "train loss", "dev loss",
                            "perplexity", "train mention precision",
@@ -202,8 +158,7 @@ if __name__ == '__main__':
                            "val mention recall", "val mention F1",
                            "val document precision", "val document recall",
                            "val document F1"]]
-        with open((args["--writepath"] +
-                   cst.train_stats_fname), 'w') as train_stats_file:
+        with open(train_stats_fname, 'w') as train_stats_file:
             writer = csv.writer(train_stats_file, delimiter=';')
             writer.writerows(column_headers)
 
@@ -211,7 +166,7 @@ if __name__ == '__main__':
     start_info, loss =\
         evaluate_model_performance(model, train_corpus, label_mapping,
                                    args, dev_corpus, start_time)
-    write_results_to_file(start_info, args)
+    write_results_to_file(start_info, train_stats_fname)
 
     scaler = GradScaler()
     for epoch in range(args['--epochs']):
@@ -221,7 +176,6 @@ if __name__ == '__main__':
             train(model, train_corpus, label_mapping, optimizer, scheduler,
                   batch_size=args["--batch_size"], scaler=scaler)
         epoch_time = time.time() - epoch_start_time
-
 
         # TODO: dev and test evaluation, writing stuff to disk, transfer BERT
         # weights for init, and make sure corpora are properly loaded
