@@ -52,7 +52,7 @@ def parse_args(argv, args):
 def get_train_args(argv):
     args = {
         # '--writepath': handled by get_evaluate_args
-        '--out_dir_suffix': '',
+        # '--out_dir_suffix': '',
 
         '--train_fname': cst.train_fname,
         '--dev_fname': cst.dev_fname,
@@ -145,12 +145,10 @@ def get_corpus_init_args(argv):
 def get_evaluate_args(argv):
     args = {
         '--test_fname': cst.test_fname,
-
         '--model_fname': cst.model_fname,
-        '--numer_fname': cst.numer_fname,
-
-        '--umls_fname': cst.umls_fname,
-        '--st21_fname': cst.stid_fname,
+        # '--numer_fname': cst.numer_fname,
+        # '--umls_fname': cst.umls_fname,
+        # '--st21_fname': cst.stid_fname,
 
         '--writepath': cst.wd + 'runs/train/' +
         datetime.today().strftime('%Y_%m_%d_%H_%M_%S'),
