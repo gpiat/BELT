@@ -50,26 +50,21 @@ def parse_args(argv, args):
 
 def get_train_args(argv):
     args = {
+        '--writepath': cst.out_dir,
+        '--out_dir_suffix': '',
+
         '--train_fname': cst.train_fname,
         '--dev_fname': cst.dev_fname,
         '--test_fname': cst.test_fname,
         '--model_fname': cst.model_fname,
-        '--writepath': cst.wd,
         '--bert_dir': cst.wd + '/data/biobert-v1.1',
+
         '--resume': False,
         '--epochs': 10,
         '--optim': "adamw",
-        '--lr': 5,  # only useful for SGD
-        # TODO: make None default learning rate and add an
-        #       "if lr is None lr = x" statement for each optimizer
+        '--lr': None,  # only useful for SGD
         '--window_size': 128,
         '--batch_size': 8,
-        '--overlap': 0.2,
-        '--pretrained': False,  # TODO: useless as of now, may be deleted
-        # target type can be "bin" for pure entity identification,
-        # "semtype" for semantic type IDs
-        # or "cuid" for UMLS Concept Unique Identifiers
-        '--target_type': 'cuid',
         '--embed_size': 200,  # size of embeddings
         '--nhead': 8,  # number of attention heads
         '--nhid': 250,  # dimension of the FFNN in the encoder
@@ -91,6 +86,7 @@ def get_train_args(argv):
         help(args, "Invalid target type")
         sys.exit(1)
 
+    args.update(get_evaluate_args(argv))
     return args
 
 
@@ -151,7 +147,7 @@ def get_evaluate_args(argv):
         '--umls_fname': cst.umls_fname,
         '--st21_fname': cst.stid_fname,
 
-        '--out_dir': cst.out_dir,
+        '--writepath': cst.out_dir,
         '--out_dir_suffix': '',
         '--predictions_fname': "predictions.out",
         '--targets_fname': "targets.out",
@@ -167,13 +163,13 @@ def get_evaluate_args(argv):
     }
     parse_args(argv, args)
 
-    args['--out_dir'] = args['--out_dir'] + args['--out_dir_suffix']
+    args['--writepath'] = args['--writepath'] + args['--out_dir_suffix']
     del args['--out_dir_suffix']
-    if not os.path.exists(args['--out_dir']):
-        os.makedirs(args['--out_dir'])
-    args['--predictions_fname'] = os.path.join(args['--out_dir'],
+    if not os.path.exists(args['--writepath']):
+        os.makedirs(args['--writepath'])
+    args['--predictions_fname'] = os.path.join(args['--writepath'],
                                                args['--predictions_fname'])
-    args['--targets_fname'] = os.path.join(args['--out_dir'],
+    args['--targets_fname'] = os.path.join(args['--writepath'],
                                            args['--targets_fname'])
 
     return args
@@ -186,13 +182,15 @@ def select_optimizer(option, model, lr, n_batches=None, epochs=None):
         optimizer = torch.optim.Adam(model.parameters())
         scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "radam":
+        lr = 0.001 if lr is None else lr
         optimizer = torch_optimizer.RAdam(model.parameters(),
-                                          lr=0.001,
+                                          lr=lr,
                                           betas=(0.9, 0.999),
                                           eps=1e-8,
                                           weight_decay=0)
         scheduler = StepLR(optimizer, 10.0, gamma=0.8)
     elif option == "adamw":
+        lr = 1e-5 if lr is None else lr
         optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
         max_steps = n_batches * epochs
         num_warmup_step = math.floor(max_steps * 0.1)
@@ -233,9 +231,10 @@ def select_optimizer(option, model, lr, n_batches=None, epochs=None):
         optimizer = torch.optim.Rprop(model.parameters())
         scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "lamb":
+        lr = 1e-3 if lr is None else lr
         optimizer = torch_optimizer.Lamb(
             model.parameters(),
-            lr=1e-3,
+            lr=lr,
             betas=(0.9, 0.999),
             eps=1e-8,
             weight_decay=0,
@@ -245,9 +244,10 @@ def select_optimizer(option, model, lr, n_batches=None, epochs=None):
         optimizer = torch.optim.ASGD(model.parameters())
         scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "accsgd":
+        lr = 1e-3 if lr is None else lr
         optimizer = torch_optimizer.AccSGD(
             model.parameters(),
-            lr=1e-3,
+            lr=lr,
             kappa=1000.0,
             xi=10.0,
             small_const=0.7,
@@ -255,9 +255,10 @@ def select_optimizer(option, model, lr, n_batches=None, epochs=None):
         )
         scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "sgdw":
+        lr = 1e-3 if lr is None else lr
         optimizer = torch_optimizer.SGDW(
             model.parameters(),
-            lr=1e-3,
+            lr=lr,
             momentum=0,
             dampening=0,
             weight_decay=1e-2,
@@ -265,6 +266,7 @@ def select_optimizer(option, model, lr, n_batches=None, epochs=None):
         )
         scheduler = StepLR(optimizer, 10.0, gamma=0.2)
     elif option == "sgd":
+        lr = 5 if lr is None else lr
         optimizer = torch.optim.SGD(model.parameters(), lr=lr)
         scheduler = StepLR(optimizer,
                            10.0,
