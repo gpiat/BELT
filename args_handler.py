@@ -59,6 +59,7 @@ def get_train_args(argv):
         '--model_fname': cst.model_fname,
         '--bert_dir': cst.wd + '/data/biobert-v1.1',
 
+        '--target_type': 'semtype',
         '--resume': False,
         '--epochs': 10,
         '--optim': "adamw",
