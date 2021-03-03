@@ -1,40 +1,23 @@
-import numpy as np
-import pickle
-import torch
-import warnings
-
-from sys import argv
-
 import constants as cst
+import numpy as np
+import os
+import pickle
+import sys
+import torch
+
 from args_handler import get_evaluate_args
-from util import get_text_window
-from util import pad
-from util import set_targets
+from dataset import extract_label_mapping
+from dataset import collate_ner
 
-
-def cuid_list_to_ranges(cuids):
-    """ TODO: RENAME THIS FUNCTION
-              it no longer handles only CUIDs,
-              it also handles other class labels
-        Args:
-            cuids (list<int>): list of CUIDs, likely with repetitions
-        Returns:
-            ranges (list<[int, int, int]>): list of ranges such that each
-                range is a list of the form [begin, end + 1, CUID].
-        Example:
-            In:     0, 0, 0, 0, 4, 4, 4, 4, 4, 0, 1, 1, 1
-                    ^        ^  ^           ^  ^  ^     ^
-                    |        | beg         end |  |     |
-                   beg      end                | beg   end
-                                            beg+end
-            Out: [[0, 4, 0], [4, 9, 4], [9, 10, 0], [10, 12, 1]]
-    """
-    ranges = [[0, 0, cuids[0]]]
-    for i in range(1, len(cuids)):
-        ranges[-1][1] = i
-        if cuids[i] != cuids[i - 1]:
-            ranges.append([i, i, cuids[i]])
-    return ranges
+from seqeval.metrics import accuracy_score
+from seqeval.metrics import classification_report
+from seqeval.metrics import f1_score
+from seqeval.metrics import precision_score
+from seqeval.metrics import recall_score
+from statistics import mean
+from sys import argv
+from torch.cuda.amp import autocast
+from torch.utils.data import DataLoader
 
 
 def prec_rec_f1(tp, fp, fn):
@@ -51,47 +34,6 @@ def prec_rec_f1(tp, fp, fn):
     except ZeroDivisionError:
         f1 = 0
     return precision, recall, f1
-
-
-def get_mention_prec_rec_f1(predictions, targets):
-    """ Computes precision, recall and F1 at mention level.
-        The original paper computes true positives, false positives and false
-        negatives based on ranges of characters, CUIDs and PMIDs. Here, the
-        PMID is not needed because the structure of the `predictions` and
-        `targets` lists already accounts for document differentiation, and
-        character-identifying indexes are replaced with word indexes.
-        These are in theory entirely equivalent.
-        Args:
-            predictions (list<list<int>>): each int represents the PMID of
-                a word, each list<int> represents a document.
-            targets (list<list<int>>): each int represents the PMID of
-                a word, each list<int> represents a document.
-        Return:
-            precision (float)
-            recall (float)
-            f1 (float)
-    """
-    tp = 0  # True Positives
-    # tn = 0, not needed
-    fp = 0  # False Positives
-    fn = 0  # False Negatives
-
-    for i in range(len(predictions)):  # is = to len(targets)
-        predictions_i_ranges = [j for j in cuid_list_to_ranges(
-            predictions[i]) if j[2] != 0]
-        targets_i_ranges = [j for j in cuid_list_to_ranges(
-            targets[i]) if j[2] != 0]
-
-        for prediction in predictions_i_ranges:
-            if prediction in targets_i_ranges:
-                tp += 1
-            else:
-                fp += 1
-        for target in targets_i_ranges:
-            if target not in predictions_i_ranges:
-                fn += 1
-
-    return prec_rec_f1(tp, fp, fn)
 
 
 def get_document_prec_rec_f1(predictions, targets):
@@ -169,220 +111,123 @@ def get_token_prec_rec_f1(predictions, targets):
     return (*prec_rec_f1(tp, fp, fn), pcpt)
 
 
-def predict(model, document, target_finder, label_to_idx, overlap):
-    """ Get predictions for a given model
+def pred_to_IOB2(pred, model, batch, label_mapping):
+    """ Takes raw predictions from a NamedEntityRecognizer model of the form
+        [[0.01, 0.9, 0.09], [0.1, 0.8, 0.1], [0.8, 0.1, 0.1], ...]
+        where each sublist represents a probability distribution on entity
+        types, and returns an IOB2-formatted prediction with no padding.
         Args:
-            model: The model doing the prediction
-            document <MedMentionsDocument>: The document to annotate
-                (a label is predicted for each token in the document)
-            target_finder <func>: function which finds the targets for
-                a given length of text.
-            label_to_idx <dict>: a lookup table associating the true
-                label of a token (str) to the index of its corresponding
-                index in predicted probability distribution.
-            overlap [0-1]: amount of overlap between two text windows
-                preceding and following any given text window.
+            pred (Tensor): the model's predictions for the sequence
+            model (NamedEntityRecognizer): the model being trained
+            batch (DataLoader instance?): the batch being processed
+            label_mapping (dict=None): maps label ids (indices in the
+                probability distribution vector) to actual labels.
     """
-    window_size = model.phrase_len
-    document_tagged = []
-    # here huggingface may tell us that the sequence is too long
-    # to pass on to BERT as is. We do not care about this as
-    # we cut the text into batches afterwards.
-    # with warnings.catch_warnings():
-    #     warnings.simplefilter("ignore")
-    text = model.tokenizer.encode(pad(document.text,
-                                      window_size,
-                                      overlap))
+    output = model.probabilities_to_prediction(
+        model.output_to_probabilities(pred)).tolist()
+    # Now we remove all of the padding elements from output & labels
+    # so we do not skew the stats. For that, we need the true number
+    # of tokens in each sequence
+    seq_lens = [len(seq) for seq in batch.get("token_starts")]
+    try:
+        # labels = [seq[:length] for seq, length in zip(labels, seq_lens)]
+        output = [seq[:length] for seq, length in zip(output, seq_lens)]
+    except IndexError as e:
+        print('batch.get("token_starts"):\n', batch.get("token_starts"),
+              file=sys.stderr)
+        print('seq_lens:\n', seq_lens, file=sys.stderr)
+        # print('labels:\n', labels, file=sys.stderr)
+        print('output:\n', output, file=sys.stderr)
+        raise e
 
-    increment = round((1 - (overlap / 2)) * window_size)
-    for i in range(0, len(text), increment):
-        s_idx = max(min(i, len(text) - window_size), 0)
-        e_idx = min(len(text), window_size + i)
-        data = get_text_window(text, window_size, s_idx, e_idx)
-
-        # The `target` list must be of same dimensions as model output, so
-        # it must have window_size items and must thus be padded, matching
-        # the text. Here we initialize the targets to the right size, and
-        # overwrite only the elements we get.
-        target = [0 for _ in range(window_size)]
-        target_found = target_finder(document,
-                                     i, i + window_size,
-                                     label_to_idx)
-        target[:len(target_found)] = target_found
-
-        output = model(data.unsqueeze(0))
-
-        # output shape: [minibatch=1, C, window_size]
-        # with C the number of classes for the classification problem
-        output = output.permute(2, 1, 0)
-        # output shape: [window_size, C, 1]
-
-        # The whole point of the overlapping windows is that with the
-        # fixed window, we don't have wnough bidirectional context at
-        # the beginning and end. This is where we figure out which
-        # predictions to keep and which to trash
-
-        # General case: Each window looks like this:
-        # with O meaning "overlapping token" and N meaning "Normal token"
-        # O O O O N N N N N N N N N N N N N N N N O O O O
-        # Here, there are eight Os and 16 Ns. The overlap is 1/3
-        # Each block of Os accounts for half of the overlap
-        # We keep the inner halves of each block of overlap and discard
-        # the outer halves as such:     (D for Discard, K for Keep)
-        # D D K K K K K K K K K K K K K K K K K K K K D D
-        start = round((overlap / 4) * window_size)
-        stop = window_size - start
-        # Special cases: the very beginning and end of the text do not
-        # overlap with another window, therefore they cannot be discarded.
-        if i == 0:
-            start = 0
-        if i + window_size == len(text):
-            stop = window_size
-        # shape of output[j]: [C, 1], basically a vector.
-        # the explicit 2nd dimension of the Tensor isn't a problem
-        # when dealing with argmax.
-        document_tagged += [int(torch.argmax(output[j]))
-                            for j in range(start, stop)]
-        target = torch.Tensor(target).to(cst.device)
-
-        loss_increment = (
-            len(data) * cst.criterion(output,
-                                      target.unsqueeze(1).long()).item())
-    return document_tagged, loss_increment
+    # Currently, output_tracker contains label IDs instead of actual labels,
+    # since that's what the model understands. Here, we're switching the IDs
+    # with the labels themselves.
+    output = [[label_mapping[tok] for tok in seq] for seq in output]
+    return output
 
 
-def evaluate(model, corpus, target_finder, label_to_idx,
-             txt_window_overlap, compute_mntn_p_r_f1=False,
-             compute_doc_p_r_f1=False, compute_tkn_p_r_f1=False):
+def evaluate(model, corpus, idx_to_labels, batch_size,
+             collate_fn, write_pred=False):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
             - (MedMentionsCorpus) corpus: the evaluation corpus
-            - (func) target_finder: function that finds the prediction
-                targets for the given document and text window.
-            - (dict) label_to_idx: a dict mapping token labels (UMLS
+            - (dict) idx_to_labels: a dict mapping token labels (UMLS
                 CUIDs, STIDs etc.) to indices. Assumes all the CUIDs
-                used in the corpus are indexed in label_to_idx.
-            - (float) txt_window_overlap[0-1]: amount of overlap between two
-                text windows preceding and following any given text window.
-            - (bool) compute_mntn_p_r_f1: if True, add precision, recall
-                and F1 to return value (computed at "mention" level, i.e.
-                True Positive => PMID, start index, end index and category
-                of mention detected accurately)
-            - (bool) compute_doc_p_r_f1: if True, add precision, recall
-                and F1 to return value (computed at "document" level, i.e.
-                True Positive => PMID, and category of mention detected
-                accurately)
-            - (bool) compute_tkn_p_r_f1: if True, add precision, recall
-                F1 and accuracy to return value (computed at "token" level,
-                i.e. True Positive => PMID, single token index, and category
-                of mention detected accurately)
-
+                used in the corpus are indexed in idx_to_labels.
+            - (int) batch_size: size of the batches to be processed
+            - (func) collate_fn: function for corpus collation used
+                by dataloader
+            - (bool) write_pred: whether or not to write predictions to file.
+                Defaults to False.
     """
     model.eval()  # Turn on the evaluation mode
-    total_loss = 0.
+    total_loss = []
     text_tagged = []
     text_targets = []
+    corpus.load_instances()
+    dataloader = DataLoader(
+        corpus,
+        batch_size=batch_size,
+        collate_fn=collate_fn
+    )
     with torch.no_grad():
-        for document in corpus.documents():
-            document_tagged, loss_increment =\
-                predict(model, document, target_finder,
-                        label_to_idx, txt_window_overlap)
-            total_loss += loss_increment
+        for batch in iter(dataloader):
+            # here, the labels are the numbers as
+            # mapped by the labels_to_idx dict
+            labels = batch.get("token_labels")
+            with autocast():
+                raw_output = model(batch)
+                loss = cst.criterion(raw_output,
+                                     labels,
+                                     batch.get("token_masks"))
+                # loss = round(float(loss_func(raw_output, labels).data), 2)
+            total_loss.append(float(loss))
 
-            # document_tagged and document_targets are lists
-            #    (size: n_tokens)
-            # text_tagged and text_targets are lists of lists
-            #    (size: n_doc x n_tok)
-            text_tagged.append(document_tagged)
-            text_targets.append(target_finder(document, 0,
-                                              len(document.targets),
-                                              label_to_idx))
-            # adding padding to the targets
-            text_targets[-1].extend([0] * (len(text_tagged[-1]) -
-                                           len(text_targets[-1])))
+            # we don't need the pre-mapped labels anymore, so we can just
+            # overwrite the variable with the raw strings in nested lists
+            labels = batch.get("raw_seq_labels")
+            # In the same way, `output` contains labels as strings, not
+            # as indices of the output vector of the classifer
+            output = pred_to_IOB2(raw_output, model, batch, idx_to_labels)
 
-    loss = total_loss / (corpus.n_documents - 1)
-    return_val = (loss,)
-    if compute_mntn_p_r_f1:
-        return_val += (get_mention_prec_rec_f1(text_tagged, text_targets),)
-    if compute_doc_p_r_f1:
-        return_val += (get_document_prec_rec_f1(text_tagged, text_targets),)
-    if compute_tkn_p_r_f1:
-        return_val += (get_token_prec_rec_f1(text_tagged, text_targets),)
+            text_targets.extend(labels)
+            text_tagged.extend(output)
+
+    if write_pred:
+        outfile = args['--predictions_fname']
+        with open(outfile, 'wb') as f:
+            pickle.dump(text_tagged, f)
+        outfile = args['--targets_fname']
+        with open(outfile, 'wb') as f:
+            pickle.dump(text_targets, f)
+    try:
+        rep = classification_report(text_targets, text_tagged)
+        f1 = f1_score(text_targets, text_tagged)
+        prec = precision_score(text_targets, text_tagged)
+        rec = recall_score(text_targets, text_tagged)
+    except ValueError:
+        rep = f1 = prec = None
+        rec = "Error: could not compute Precision/Recall/F1. Too few classes."
+    acc = accuracy_score(text_targets, text_tagged)
+    return_val = mean(total_loss), acc, prec, rec, f1, rep
     return return_val
 
 
 if __name__ == '__main__':
     args = get_evaluate_args(argv)
 
-    with open(args['--umls_fname'], 'rb') as umls_con_file:
-        # TODO: GENERALIZE TO STIDs & BIN
-        umls_cuid_to_idx = pickle.load(umls_con_file)
     with open(args['--test_fname'], 'rb') as test_file:
         test_corpus = pickle.load(test_file)
     with open(args['--model_fname'], 'rb') as model_file:
         best_model = torch.load(model_file)
 
-    target_finder = set_targets(args['--target_type'])
+    labels_to_idx = extract_label_mapping(args['--test_fname'])
+    idx_to_labels = {v: k for k, v in labels_to_idx.items()}
 
-    if args['--write_pred']:
-        umls_idx_to_cuid = {v: k for k, v in umls_cuid_to_idx.items()}
-        best_model.eval()  # Turn on the evaluation mode
-        with torch.no_grad():
-            print("number of documents: ", test_corpus.n_documents)
-            for document in test_corpus.documents():
-                document_tagged, _ =\
-                    predict(best_model, document, target_finder,
-                            umls_cuid_to_idx, args['--overlap'])
-                document_tagged = cuid_list_to_ranges(document_tagged)
-                document_targets = target_finder(document, 0,
-                                                 len(document.targets),
-                                                 umls_cuid_to_idx)
-                document_targets = cuid_list_to_ranges(document_targets)
-                for i in document_tagged:
-                    # inserting the PMID at the beginning of each range
-                    i.insert(0, document.pmid)
-                    # and replacing the index of the UMLS concept with its CUID
-                    i[-1] = umls_idx_to_cuid[i[-1]]
-                for i in document_targets:
-                    i.insert(0, document.pmid)
-                    i[-1] = umls_idx_to_cuid[i[-1]]
-                with open(args['--predictions_fname'], 'a') as f:
-                    for tag in document_tagged:
-                        print(tag, file=f)
-                    print('', file=f)
-                with open(args['--targets_fname'], 'a') as f:
-                    for target in document_targets:
-                        print(target, file=f)
-                    print('', file=f)
+    pad_id = best_model.tokenizer.pad_token_id
 
-    if not args['--skip_eval']:
-
-        # start test
-        (test_loss,
-         (mention_precision, mention_recall, mention_f1),
-         (doc_precision, doc_recall, doc_f1),
-         (tok_precision, tok_recall, tok_f1, tok_accuracy)) =\
-            evaluate(best_model, test_corpus, target_finder,
-                     umls_cuid_to_idx, args['--overlap'],
-                     compute_mntn_p_r_f1=True,
-                     compute_doc_p_r_f1=True,
-                     compute_tkn_p_r_f1=True)
-
-        print('=' * 89)
-        print('test loss {:5.2f}'.format(test_loss))
-        print('mention precision {:5.2f} | mention recall {:5.2f} |'
-              'mention f1 {:8.2f}'.format(mention_precision,
-                                          mention_recall,
-                                          mention_f1))
-        print('document precision {:5.2f} | document recall {:5.2f} |'
-              'document f1 {:8.2f}'.format(doc_precision,
-                                           doc_recall,
-                                           doc_f1))
-        print('=' * 89)
-        print('token precision {:5.2f} | token recall {:5.2f} |'
-              'token f1 {:8.2f} | token accuracy {:5.2f}'.format(tok_precision,
-                                                                 tok_recall,
-                                                                 tok_f1,
-                                                                 tok_accuracy))
+    loss, acc, prec, rec, f1, report =\
+        evaluate(best_model, test_corpus, idx_to_labels, args['--batch_size'],
+                 lambda b: collate_ner(b, pad_id=pad_id), args['--write_pred'])
