@@ -1,5 +1,6 @@
 import constants as cst
 import csv
+import evaluate as ev
 import math
 import os
 import time
@@ -13,11 +14,12 @@ from constants import device
 from dataset import NERDataset
 from dataset import collate_ner
 from dataset import extract_label_mapping
-from evaluate import evaluate
-from evaluate import main
 from util import load_model
 
 from math import mean
+from seqeval.metrics import f1_score
+from seqeval.metrics import precision_score
+from seqeval.metrics import recall_score
 from sys import argv
 from transformers import BertTokenizer
 from torch.utils.data import DataLoader
@@ -50,6 +52,8 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
                                          pad_id=model.tokenizer.pad_token_id)
     )
     total_loss = []
+    text_tagged = []
+    text_targets = []
 
     for batch in iter(dataloader):
         optimizer.zero_grad()
@@ -63,7 +67,17 @@ def train(model, corpus, target_finder, target_indexing, optimizer,
         scaler.update()
         scheduler.step()
 
-    return round(mean(total_loss), 2)
+        text_targets.extend(labels)
+        text_tagged.extend(output)
+
+    try:
+        prec = precision_score(text_targets, text_tagged)
+        rec = recall_score(text_targets, text_tagged)
+        f1 = f1_score(text_targets, text_tagged)
+    except ValueError:
+        prec = rec = f1 = "Error"
+    return_val = round(mean(total_loss), 2), prec, rec, f1
+    return return_val
 
 
 def help(args, issue_description=""):
@@ -128,6 +142,7 @@ if __name__ == '__main__':
     model = load_model(args,
                        target_indexing=label_mapping,
                        tokenizer=bert_tokenizer)
+    pad_id = model.tokenizer.pad_token_id
 
     print("running on: ", device)
 
@@ -151,40 +166,30 @@ if __name__ == '__main__':
                                      cst.train_stats_fname)
     if '--resume' not in argv:
         column_headers = [["time", "train loss", "dev loss",
-                           "perplexity", "train mention precision",
-                           "train mention recall", "train mention F1",
-                           "train document precision", "train document recall",
-                           "train document F1", "val mention precision",
-                           "val mention recall", "val mention F1",
-                           "val document precision", "val document recall",
-                           "val document F1"]]
+                           "train precision", "train recall", "train F1",
+                           "dev precision", "dev recall", "dev F1"]]
         with open(train_stats_fname, 'w') as train_stats_file:
             writer = csv.writer(train_stats_file, delimiter=';')
             writer.writerows(column_headers)
-
-    start_time = time.time()
-    start_info, loss =\
-        evaluate_model_performance(model, train_corpus, label_mapping,
-                                   args, dev_corpus, start_time)
-    write_results_to_file(start_info, train_stats_fname)
 
     scaler = GradScaler()
     for epoch in range(args['--epochs']):
         epoch_start_time = time.time()
 
-        epoch_train_loss =\
+        loss, p, r, f1 =\
             train(model, train_corpus, label_mapping, optimizer, scheduler,
                   batch_size=args["--batch_size"], scaler=scaler)
         epoch_time = time.time() - epoch_start_time
+        epoch_info = tuple(str(i) for i in (p, r, f1))
 
-        # TODO: dev and test evaluation, writing stuff to disk, transfer BERT
-        # weights for init, and make sure corpora are properly loaded
-        # current_epoch_info, loss =\
-        #     evaluate_model_performance(model, train_corpus,
-        #                                label_mapping,
-        #                                args, dev_corpus,
-        #                                epoch_start_time)
-        # write_results_to_file(current_epoch_info, args)
+        dev_loss, _, dev_p, dev_r, dev_f1, _ =\
+            ev.evaluate(model, dev_corpus, label_mapping, args["--batch_size"],
+                        collate_fn=lambda b: collate_ner(b, pad_id=pad_id))
+        dev_prf1 = str(dev_p), str(dev_r), str(dev_f1)
+
+        current_epoch_info = [str(epoch_time), str(loss), str(dev_loss),
+                              *epoch_info, *dev_prf1]
+        write_results_to_file(current_epoch_info, train_stats_fname)
 
         if loss < best_loss:
             best_loss = loss
@@ -193,4 +198,7 @@ if __name__ == '__main__':
 
         print("End of epoch {}, took {} seconds.".format(epoch + 1,
                                                          epoch_time))
-        # scheduler.step()  # already done in train()
+
+    # this runs main evaluation on test corpus. This function manages its
+    # input corpus and output files autonomously.
+    ev.main(args, best_model, bert_tokenizer, label_mapping)
