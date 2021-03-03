@@ -149,6 +149,7 @@ def get_evaluate_args(argv):
 
         '--writepath': cst.out_dir,
         '--out_dir_suffix': '',
+        '--report_fname': "stats.out",
         '--predictions_fname': "predictions.out",
         '--targets_fname': "targets.out",
 
@@ -171,6 +172,8 @@ def get_evaluate_args(argv):
                                                args['--predictions_fname'])
     args['--targets_fname'] = os.path.join(args['--writepath'],
                                            args['--targets_fname'])
+    args['--report_fname'] = os.path.join(args['--writepath'],
+                                          args['--report_fname'])
 
     return args
 

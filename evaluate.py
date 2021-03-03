@@ -230,10 +230,10 @@ def main(args):
         evaluate(best_model, test_corpus, idx_to_labels, args['--batch_size'],
                  lambda b: collate_ner(b, pad_id=pad_id), args['--write_pred'])
 
-    print("loss: {}".format(loss))
-    print("token-level accuracy: {}".format(acc))
-    print("classification report:")
-    print(report)
+    with open(args['--report_fname'], 'w') as f:
+        print("loss: {}".format(loss), file=f)
+        print("token-level accuracy: {}".format(acc), file=f)
+        print(report, file=f)
 
 
 if __name__ == '__main__':
