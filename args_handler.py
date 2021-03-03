@@ -154,17 +154,17 @@ def get_evaluate_args(argv):
         datetime.today().strftime('%Y_%m_%d_%H_%M_%S'),
         '--out_dir_suffix': '',
         '--report_fname': "stats.out",
-        '--predictions_fname': "predictions.out",
-        '--targets_fname': "targets.out",
+        '--predictions_fname': "predictions.pkl",
+        '--targets_fname': "targets.pkl",
 
         # target type can be "bin" for pure entity identification,
         # "semtype" for semantic type IDs
         # or "cuid" for UMLS Concept Unique Identifiers
-        '--target_type': 'cuid',
+        # '--target_type': 'cuid',
 
         '--write_pred': False,
-        '--skip_eval': False,
-        '--overlap': 0.2
+        # '--skip_eval': False,
+        # '--overlap': 0.2
     }
     parse_args(argv, args)
 
