@@ -64,7 +64,7 @@ def get_train_args(argv):
         '--resume': False,
         '--epochs': 10,
         '--optim': "adamw",
-        '--lr': None,  # only useful for SGD
+        '--lr': None,
         '--window_size': 128,
         '--batch_size': 8,
         '--embed_size': 200,  # size of embeddings
@@ -79,7 +79,6 @@ def get_train_args(argv):
     #    probably automate it thanks to everything in python
     #    being an object, even functions and object types.
     # args['--epochs'] = int(args['--epochs'])
-    # args['--lr'] = float(args['--lr'])
     # args['--window_size'] = int(args['--window_size'])
     # args['--batch_size'] = int(args['--batch_size'])
     # args['--overlap'] = float(args['--overlap'])
@@ -87,6 +86,10 @@ def get_train_args(argv):
     if args['--target_type'] not in ["bin", "semtype", "cuid"]:
         help(args, "Invalid target type")
         sys.exit(1)
+
+    # if a value was set for learning rate
+    if args['--lr'] is not None:
+        args['--lr'] = float(args['--lr'])
 
     args.update(get_evaluate_args(argv))
     return args
