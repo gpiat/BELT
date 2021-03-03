@@ -215,9 +215,7 @@ def evaluate(model, corpus, idx_to_labels, batch_size,
     return return_val
 
 
-if __name__ == '__main__':
-    args = get_evaluate_args(argv)
-
+def main(args):
     with open(args['--test_fname'], 'rb') as test_file:
         test_corpus = pickle.load(test_file)
     with open(args['--model_fname'], 'rb') as model_file:
@@ -228,6 +226,16 @@ if __name__ == '__main__':
 
     pad_id = best_model.tokenizer.pad_token_id
 
-    loss, acc, prec, rec, f1, report =\
+    loss, acc, _, _, _, report =\
         evaluate(best_model, test_corpus, idx_to_labels, args['--batch_size'],
                  lambda b: collate_ner(b, pad_id=pad_id), args['--write_pred'])
+
+    print("loss: {}".format(loss))
+    print("token-level accuracy: {}".format(acc))
+    print("classification report:")
+    print(report)
+
+
+if __name__ == '__main__':
+    args = get_evaluate_args(argv)
+    main(args)
