@@ -1,5 +1,6 @@
 import constants as cst
 import math
+import os
 import sys
 import torch
 import torch_optimizer
@@ -148,10 +149,12 @@ def get_evaluate_args(argv):
         '--numer_fname': cst.numer_fname,
 
         '--umls_fname': cst.umls_fname,
-        "--st21_fname": cst.stid_fname,
+        '--st21_fname': cst.stid_fname,
 
-        '--predictions_fname': cst.wd + "predictions.out",
-        '--targets_fname': cst.wd + "targets.out",
+        '--out_dir': cst.out_dir,
+        '--out_dir_suffix': '',
+        '--predictions_fname': "predictions.out",
+        '--targets_fname': "targets.out",
 
         # target type can be "bin" for pure entity identification,
         # "semtype" for semantic type IDs
@@ -163,7 +166,16 @@ def get_evaluate_args(argv):
         '--overlap': 0.2
     }
     parse_args(argv, args)
-    # args['--overlap'] = float(args['--overlap'])
+
+    args['--out_dir'] = args['--out_dir'] + args['--out_dir_suffix']
+    del args['--out_dir_suffix']
+    if not os.path.exists(args['--out_dir']):
+        os.makedirs(args['--out_dir'])
+    args['--predictions_fname'] = os.path.join(args['--out_dir'],
+                                               args['--predictions_fname'])
+    args['--targets_fname'] = os.path.join(args['--out_dir'],
+                                           args['--targets_fname'])
+
     return args
 
 
