@@ -16,10 +16,10 @@ from dataset import collate_ner
 from dataset import extract_label_mapping
 from util import load_model
 
-from math import mean
 from seqeval.metrics import f1_score
 from seqeval.metrics import precision_score
 from seqeval.metrics import recall_score
+from statistics import mean
 from sys import argv
 from transformers import BertTokenizer
 from torch.utils.data import DataLoader
