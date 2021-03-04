@@ -27,13 +27,11 @@ from torch.cuda.amp import GradScaler
 from torch.cuda.amp import autocast
 
 
-def train(model, corpus, target_finder, target_indexing, optimizer,
+def train(model, corpus, target_indexing, optimizer,
           scheduler, batch_size, scaler):
     """ Args:
             model
             corpus
-            target_finder: callable function that finds the target
-                for the text span
             optimizer
             scheduler
             batch_size (int): number of batches of text to handle
