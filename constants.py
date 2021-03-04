@@ -25,7 +25,7 @@ test_fname = pkl_prefix + "test.pkl"
 numer_fname = pkl_prefix + "numericalizer.pkl"
 
 wd = os.getcwd() + '/'
-train_stats_fname = "/train_stats.csv"
+train_stats_fname = "train_stats.csv"
 model_fname = "model.pkl"
 
 # this is the vocabulary file for the BERT tokenizer
