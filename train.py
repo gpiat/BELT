@@ -59,7 +59,7 @@ def train(model, corpus, target_indexing, optimizer,
         labels = batch.get("token_labels")
         with autocast():
             output = model(batch.get('input_ids'))
-            loss = criterion(output, labels, batch.get("token_masks"))
+            loss = criterion(output, labels)  # , batch.get("token_masks"))
             total_loss.append(float(loss))
         scaler.scale(loss).backward()
         scaler.step(optimizer)
