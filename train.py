@@ -69,7 +69,7 @@ def train(model, corpus, target_indexing, optimizer,
         scheduler.step()
 
         text_targets.extend(batch.get("raw_seq_labels"))
-        text_tagged.extend(pred_to_IOB2(output, model, batch, label_mapping))
+        text_tagged.extend(pred_to_IOB2(output, model, batch, target_indexing))
 
     try:
         prec = precision_score(text_targets, text_tagged)
@@ -181,13 +181,17 @@ if __name__ == '__main__':
         epoch_start_time = time.time()
 
         loss, p, r, f1 =\
-            train(model, train_corpus, label_mapping, optimizer, scheduler,
+            train(model=model, corpus=train_corpus,
+                  target_indexing={v: k for k, v in label_mapping.items()},
+                  optimizer=optimizer, scheduler=scheduler,
                   batch_size=args["--batch_size"], scaler=scaler)
         epoch_time = time.time() - epoch_start_time
         epoch_info = tuple(str(i) for i in (p, r, f1))
 
         dev_loss, _, dev_p, dev_r, dev_f1, _ =\
-            ev.evaluate(model, dev_corpus, label_mapping, args["--batch_size"],
+            ev.evaluate(model=model, corpus=dev_corpus,
+                        idx_to_labels={v: k for k, v in label_mapping.items()},
+                        batch_size=args["--batch_size"],
                         collate_fn=lambda b: collate_ner(b, pad_id=pad_id))
         dev_prf1 = str(dev_p), str(dev_r), str(dev_f1)
 
