@@ -169,7 +169,9 @@ class BELT(nn.Module):
     def _init_decoder_weights(self, initrange):
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src):
+    def forward(self, batch):
+        src = batch.get('input_ids')
+
         # src shape: torch.Size([minibatch, max_seq_len])
         # we want [minibatch, phrase_len] so we add a vertical strip of padding
         missing_cols = self.phrase_len - src.shape[1]
@@ -220,7 +222,40 @@ class BELT(nn.Module):
         # 2, 3 and 1.
         output = output.permute(1, 2, 0)
         # output shape: [minibatch, C, window_size]
+
         return output
+
+    def filter(self, output, batch):
+        """ This function takes a padded output of shape
+            (batch_size, n_classes, phrase_len), finds and extracts only the
+            predictions corresponding to the beginning of a token, and re-pads
+            what's left to the shape (batch_size, n_classes, max_seq_len).
+        """
+        filtered = []
+        for a, i in zip(output, batch.get("token_starts")):
+            # We select relevant outputs, i.e. the ones that correspond to the
+            # beginning of a token.
+            selected = torch.index_select(a, 0, i)
+
+            # We pad everything once again
+            if selected.size(0) < batch.get("max_seq_len"):
+
+                padding = torch.zeros(
+                    batch.get("max_seq_len") -
+                    selected.size(0), selected.size(1)
+                ) + self.pad_token
+
+                if device.type == 'cuda':
+                    padding = padding.cuda()
+
+                selected = torch.cat([selected, padding], 0)
+
+            # We unsqueeze and append
+            filtered.append(selected.unsqueeze(0))
+
+        # We concatenate everything
+        filtered = torch.cat(filtered, 0)
+        return filtered
 
     def recycle(self, new_n_classes, initrange=0.1):
         self.n_classes = new_n_classes

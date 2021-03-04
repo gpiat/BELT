@@ -180,9 +180,8 @@ def evaluate(model, corpus, idx_to_labels, batch_size,
             labels = batch.get("token_labels")
             with autocast():
                 raw_output = model(batch)
-                loss = cst.criterion(raw_output,
-                                     labels,
-                                     batch.get("token_masks"))
+                output = model.filter(raw_output, batch)
+                loss = cst.criterion(output, labels)
                 # loss = round(float(loss_func(raw_output, labels).data), 2)
             total_loss.append(float(loss))
 
