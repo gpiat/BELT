@@ -232,10 +232,14 @@ class BELT(nn.Module):
             what's left to the shape (batch_size, n_classes, max_seq_len).
         """
         filtered = []
-        for a, i in zip(output, batch.get("token_starts")):
+        # output shape is [batch_size, C, phrase_len] but the token_starts
+        # are of shape [batch_size, ntok_in_sentence]. It's easier to manage
+        # if their dimensions are aligned so we permute dimensions
+        output = output.permute(0, 2, 1)
+        for seq_out, idx in zip(output, batch.get("token_starts")):
             # We select relevant outputs, i.e. the ones that correspond to the
             # beginning of a token.
-            selected = torch.index_select(a, 0, i)
+            selected = torch.index_select(input=seq_out, dim=0, index=idx)
 
             # We pad everything once again
             if selected.size(0) < batch.get("max_seq_len"):
@@ -251,10 +255,13 @@ class BELT(nn.Module):
                 selected = torch.cat([selected, padding], 0)
 
             # We unsqueeze and append
-            filtered.append(selected.unsqueeze(0))
+            filtered.append(selected.T.unsqueeze(0))
 
         # We concatenate everything
         filtered = torch.cat(filtered, 0)
+
+        # we set dimensions straight again
+        filtered.permute(0, 2, 1)
         return filtered
 
     def recycle(self, new_n_classes, initrange=0.1):
