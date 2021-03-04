@@ -124,8 +124,7 @@ def pred_to_IOB2(pred, model, batch, label_mapping):
             label_mapping (dict=None): maps label ids (indices in the
                 probability distribution vector) to actual labels.
     """
-    output = model.probabilities_to_prediction(
-        model.output_to_probabilities(pred)).tolist()
+    output = torch.argmax(pred, dim=1).tolist()
     # Now we remove all of the padding elements from output & labels
     # so we do not skew the stats. For that, we need the true number
     # of tokens in each sequence
