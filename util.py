@@ -98,7 +98,8 @@ def load_model(args, target_indexing, tokenizer=None):
                      embed_size=args['--embed_size'], nhead=args['--nhead'],
                      nhid=args['--nhid'], nlayers=args['--nlayers'],
                      phrase_len=args['--window_size'],
-                     dropout=args['--dropout']).to(device)
+                     dropout=args['--dropout'],
+                     pad_token=tokenizer.pad_token_id).to(device)
     return model
 
 

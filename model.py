@@ -31,7 +31,7 @@ class PositionalEncoding(nn.Module):
 class BELT(nn.Module):
 
     def __init__(self, tokenizer, n_classes, embed_size, nhead,
-                 nhid, nlayers, phrase_len, dropout=0.5, pad_token=1):
+                 nhid, nlayers, phrase_len, dropout=0.5, pad_token=0):
         """Args:
             - <int> ntoken: vocabulary size
             - <int> n_classes: number of classes (such as UMLS concepts)
@@ -44,7 +44,7 @@ class BELT(nn.Module):
             - <int> phrase_len: number of words in each phrase processed
             - <float> dropout
             - pad_token: the number associated with the padding token.
-                Defaults to 1 (assuming 0 is reserved for <UNK>)
+                Defaults to 0 (same as BertTokenizer)
         """
         super(BELT, self).__init__()
         self.model_type = 'Transformer'
