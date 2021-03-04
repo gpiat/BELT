@@ -43,11 +43,12 @@ def train(model, corpus, target_indexing, optimizer,
             log_interval (int): number of iterations between logging events
     """
     model.train()  # Turn on the train mode
+    pad_id = model.tokenizer.pad_token_id
+    corpus.load_instances()
     dataloader = DataLoader(
         corpus,
         batch_size=batch_size,
-        collate_fn=lambda b: collate_ner(b,
-                                         pad_id=model.tokenizer.pad_token_id)
+        collate_fn=lambda b: collate_ner(b, pad_id=pad_id)
     )
     total_loss = []
     text_tagged = []
@@ -136,6 +137,7 @@ if __name__ == '__main__':
     dev_corpus = NERDataset(medmentions_file=args.get("--dev_fname"),
                             bert_tokenizer=bert_tokenizer,
                             label_mapping=label_mapping)
+    train_corpus.load_instances()
 
     model = load_model(args,
                        target_indexing=label_mapping,
