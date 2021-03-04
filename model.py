@@ -59,7 +59,7 @@ class BELT(nn.Module):
         encoder_layers = TransformerEncoderLayer(embed_size, nhead,
                                                  nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.decoder = nn.Linear(embed_size, n_classes + 1)
+        self.decoder = nn.Linear(embed_size, n_classes)
 
         self.embed_size = embed_size
         self.init_weights()
