@@ -175,7 +175,7 @@ class BELT(nn.Module):
         missing_cols = self.phrase_len - src.shape[1]
         assert missing_cols >= 0
         padding = torch.zeros(src.shape[0], missing_cols) + self.pad_token
-        padding.to(device)
+        padding = padding.to(device)
         src = torch.cat((src, padding), 1)
 
         # From documentation:
