@@ -63,7 +63,8 @@ class NERDataset(Dataset):
 
     def __init__(self, medmentions_file: str = None,
                  bert_tokenizer: BertTokenizer = None,
-                 label_mapping: dict = None):
+                 label_mapping: dict = None,
+                 max_seq_len=512):
         """ Args:
                 medmentions_file (str=None): filename for the corpus
                 bert_tokenizer (BertTokenizer=None): not used for tokenization
@@ -76,6 +77,7 @@ class NERDataset(Dataset):
         self.medmentions_file = medmentions_file
         self.label_mapping = label_mapping
         self.bert_tokenizer = bert_tokenizer
+        self.absolute_max_seq_len = max_seq_len
 
         self.instances = dict()
 
@@ -93,6 +95,7 @@ class NERDataset(Dataset):
         """
 
         instance_idx = 0
+        instance_list = []
 
         with open(self.medmentions_file, "r", encoding="UTF-8") as input_file:
             sequence_buffer = []
@@ -104,7 +107,7 @@ class NERDataset(Dataset):
                     if len(sequence_buffer) > 0:
                         instance = self.create_instance(
                             sequence_buffer=sequence_buffer)
-                        self.instances[instance_idx] = instance
+                        instance_list.append(instance)
                         instance_idx += 1
                         sequence_buffer = []
                     continue
@@ -114,8 +117,19 @@ class NERDataset(Dataset):
             if len(sequence_buffer) > 0:
                 instance = self.create_instance(
                     sequence_buffer=sequence_buffer)
-                self.instances[instance_idx] = instance
+                instance_list.append(instance)
                 instance_idx += 1
+        i = 0
+        while i < len(instance_list):
+            instance = instance_list[i]
+            if len(instance["seq_input_ids"]) > self.absolute_max_seq_len:
+                beginning = instance_list[:i]  # current item i is excluded
+                end = instance_list[i + 1:]
+                instance_split = self.split_instance(instance)
+                instance_list = beginning + instance_split + end
+                i += 1
+            i += 1
+        self.instances = {k: v for k, v in enumerate(instance_list)}
 
     def create_instance(self, sequence_buffer: list = None):
         """ Encode and keep track of the sentence represented by the sequence
@@ -194,6 +208,32 @@ class NERDataset(Dataset):
                                       for item in token_labels]
 
         return new_instance
+
+    def split_instance(self, instance):
+        instance1 = dict()
+        instance2 = dict()
+        for i, ts in enumerate(instance["seq_token_starts"]):
+            if ts > self.absolute_max_seq_len:
+                break
+        # ts is the first out of bounds token and i is its index in
+        # seq_token_starts. However, the previous token may be
+        # partially out of bounds as well. So we subtract 1 and that
+        # index will be excluded when it is the end point of a slice.
+        i -= 1
+        ts = instance["seq_token_starts"][i]
+        instance1["seq_input_ids"] = instance["seq_input_ids"][:ts]
+        instance1["seq_token_starts"] = instance["seq_token_starts"][:i]
+        instance1["raw_seq_labels"] = instance["raw_seq_labels"][:i]
+        instance1["seq_labels"] = instance["seq_labels"][:i]
+
+        instance2["seq_input_ids"] = instance["seq_input_ids"][ts:]
+        # for instance 2 it's not enough to just take the symmetric slice,
+        # we need to restart the indices from 0.
+        instance2["seq_token_starts"] = \
+            [sts - ts for sts in instance["seq_token_starts"][i:]]
+        instance2["raw_seq_labels"] = instance["raw_seq_labels"][i:]
+        instance2["seq_labels"] = instance["seq_labels"][i:]
+        return [instance1, instance2]
 
 
 # ## Dataloader creation ##

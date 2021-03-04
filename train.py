@@ -134,10 +134,12 @@ if __name__ == '__main__':
 
     train_corpus = NERDataset(medmentions_file=args.get("--train_fname"),
                               bert_tokenizer=bert_tokenizer,
-                              label_mapping=label_mapping)
+                              label_mapping=label_mapping,
+                              max_seq_len=args['--window_size'])
     dev_corpus = NERDataset(medmentions_file=args.get("--dev_fname"),
                             bert_tokenizer=bert_tokenizer,
-                            label_mapping=label_mapping)
+                            label_mapping=label_mapping,
+                            max_seq_len=args['--window_size'])
     train_corpus.load_instances()
 
     model = load_model(args,
