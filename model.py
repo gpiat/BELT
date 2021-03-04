@@ -194,7 +194,9 @@ class BELT(nn.Module):
         # >>> # a batch of 2 samples of 4 indices each
         # >>> input = torch.LongTensor([[1,2,4,5],[4,3,2,9]])
         # so input shape should be (minibatch, window_size)
-        output = self.encoder(src) * math.sqrt(self.embed_size)
+        # here .long() is necessary because apparently torch.embedding (which
+        # is called later on) requires the input tensor to be of type long
+        output = self.encoder(src.long()) * math.sqrt(self.embed_size)
         # TODO: wait where does this * sqrt(embed size) come from?
         output = self.pos_encoder(output)
         # output shape: torch.Size([minibatch, window_size, embed_size])
