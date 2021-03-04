@@ -14,6 +14,7 @@ from constants import device
 from dataset import NERDataset
 from dataset import collate_ner
 from dataset import extract_label_mapping
+from evaluate import pred_to_IOB2
 from util import load_model
 
 from seqeval.metrics import f1_score
@@ -67,8 +68,8 @@ def train(model, corpus, target_indexing, optimizer,
         scaler.update()
         scheduler.step()
 
-        text_targets.extend(labels)
-        text_tagged.extend(output)
+        text_targets.extend(batch.get("raw_seq_labels"))
+        text_tagged.extend(pred_to_IOB2(output, model, batch, label_mapping))
 
     try:
         prec = precision_score(text_targets, text_tagged)
