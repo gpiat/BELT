@@ -148,7 +148,8 @@ def pred_to_IOB2(pred, model, batch, label_mapping):
 
 
 def evaluate(model, corpus, idx_to_labels, batch_size,
-             collate_fn, write_pred=False):
+             collate_fn, write_pred=False, prediction_fname=None,
+             target_fname=None):
     """ Evaluates a BELT model
         Args:
             - (TransformerModel) model: the model to evaluate
@@ -161,6 +162,10 @@ def evaluate(model, corpus, idx_to_labels, batch_size,
                 by dataloader
             - (bool) write_pred: whether or not to write predictions to file.
                 Defaults to False.
+            - (str) prediction_fname: defaults to None, only used if
+                write_pred is True
+            - (str) target_fname: defaults to None, only used if write_pred
+                is True
     """
     model.eval()  # Turn on the evaluation mode
     total_loss = []
@@ -195,11 +200,9 @@ def evaluate(model, corpus, idx_to_labels, batch_size,
             text_tagged.extend(output)
 
     if write_pred:
-        outfile = args['--predictions_fname']
-        with open(outfile, 'wb') as f:
+        with open(prediction_fname, 'wb') as f:
             pickle.dump(text_tagged, f)
-        outfile = args['--targets_fname']
-        with open(outfile, 'wb') as f:
+        with open(target_fname, 'wb') as f:
             pickle.dump(text_targets, f)
     try:
         rep = classification_report(text_targets, text_tagged)
@@ -225,7 +228,10 @@ def main(args, model, bert_tokenizer, label_mapping):
 
     loss, acc, _, _, _, report =\
         evaluate(model, test_corpus, idx_to_labels, args['--batch_size'],
-                 lambda b: collate_ner(b, pad_id=pad_id), args['--write_pred'])
+                 lambda b: collate_ner(b, pad_id=pad_id),
+                 args['--write_pred'],
+                 args['--predictions_fname'],
+                 args['--targets_fname'])
 
     with open(args['--report_fname'], 'w') as f:
         print("loss: {}".format(loss), file=f)
