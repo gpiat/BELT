@@ -111,8 +111,9 @@ def write_results_to_file(current_epoch_info, train_stats_fname):
 
 
 def write_model_to_file(model, args):
-    with open(args['--writepath'] +
-              args['--model_fname'], 'wb') as model_file:
+    with open(os.path.join(args['--writepath'],
+                           args['--model_fname']),
+              'wb') as model_file:
         # here pytorch warns us that it cannot perform sanity
         # checks on the model's source code, which we don't really
         # care about, so we ignore them.
