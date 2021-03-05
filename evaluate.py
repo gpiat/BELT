@@ -221,10 +221,10 @@ def main(args, model, bert_tokenizer, label_mapping):
 
     idx_to_labels = {v: k for k, v in label_mapping.items()}
 
-    pad_id = best_model.tokenizer.pad_token_id
+    pad_id = model.tokenizer.pad_token_id
 
     loss, acc, _, _, _, report =\
-        evaluate(best_model, test_corpus, idx_to_labels, args['--batch_size'],
+        evaluate(model, test_corpus, idx_to_labels, args['--batch_size'],
                  lambda b: collate_ner(b, pad_id=pad_id), args['--write_pred'])
 
     with open(args['--report_fname'], 'w') as f:
@@ -240,8 +240,8 @@ if __name__ == '__main__':
         'test': args['--test_fname']
     }
     with open(args['--model_fname'], 'rb') as model_file:
-        best_model = torch.load(model_file)
+        model = torch.load(model_file)
     bert_tokenizer = BertTokenizer.from_pretrained(args['--bert_dir'])
     label_mapping = extract_label_mapping(file_list=dataset_files)
 
-    main(args, best_model)
+    main(args, model)
