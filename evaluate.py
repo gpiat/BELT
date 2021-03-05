@@ -219,8 +219,7 @@ def main(args, model, bert_tokenizer, label_mapping):
                              bert_tokenizer=bert_tokenizer,
                              label_mapping=label_mapping)
 
-    labels_to_idx = extract_label_mapping(args['--test_fname'])
-    idx_to_labels = {v: k for k, v in labels_to_idx.items()}
+    idx_to_labels = {v: k for k, v in label_mapping.items()}
 
     pad_id = best_model.tokenizer.pad_token_id
 
